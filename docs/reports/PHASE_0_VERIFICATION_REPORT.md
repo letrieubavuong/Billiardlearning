@@ -60,16 +60,12 @@ Báo cáo nghiệm thu hoàn tất các hạng mục của **Phase 0 — Pure Da
 ---
 
 ## Repository contracts
-- `lib/domain/repositories/repositories.dart` định nghĩa 8 repository interfaces thuần Dart:
-  - `VNextLessonRepository`
-  - `VNextSceneRepository`
-  - `VNextTechniqueRepository`
-  - `VNextNumberSystemRepository`
-  - `VNextExerciseRepository`
-  - `VNextMediaRepository`
-  - `VNextLearningProgressRepository`
-  - `VNextSimulationProfileRepository`
-- Tất cả các phương thức đều bất đồng bộ (`Future`), áp dụng hợp đồng Soft Delete (`includeDeleted: bool`) và làm việc trực tiếp với Domain Entities.
+- `lib/domain/repositories/repositories.dart` định nghĩa 8 repository interfaces thuần Pure Dart:
+  - `VNextLessonRepository` & `VNextSceneRepository`: Hỗ trợ đầy đủ vòng đời Soft Delete (`getById(id, {includeDeleted})`, `list({includeDeleted})`, `save`, `softDelete`, `restore`, `purge`).
+  - `VNextTechniqueRepository`, `VNextNumberSystemRepository`, `VNextExerciseRepository`, `VNextMediaRepository`: Hợp đồng CRUD & delete trực tiếp.
+  - `VNextLearningProgressRepository`: Hợp đồng theo dõi tiến độ (`getByEntityId`, `listAll`, `saveProgress`).
+  - `VNextSimulationProfileRepository`: Hợp đồng cấu hình giả lập (`getById`, `getDefault`, `list`, `save`).
+- Tất cả các repository contracts đều là interface thuần Dart, chỉ trao đổi Domain Entities, không phụ thuộc SQLite/sqflite hay data layer row models.
 
 ---
 
@@ -120,7 +116,17 @@ Báo cáo nghiệm thu hoàn tất các hạng mục của **Phase 0 — Pure Da
 ---
 
 ## Deferred gaps
-- `CueInstruction` legacy fields (`cueAngle` elevation, `thickness` contact fraction, asset `forceImage` to numeric speed mapping) tiếp tục được ghi nhận là `DEFERRED DOMAIN GAPs` và sẽ được phát triển hoàn chỉnh ở Phase 15 (Cue Strike Model).
+- `cueAngle` (cue elevation): DEFERRED $\rightarrow$ Owner: **Phase 15 — Cue Strike Model**.
+- `thickness` (contact fraction): DEFERRED $\rightarrow$ Owner: **Phase 6 — Lesson Domain / CueInstruction teaching block integration**.
+- `forceImage`: Legacy `forceImage` preset $\rightarrow$ `normalized instructional power [0.0, 1.0]` mapping: DEFERRED $\rightarrow$ Physical conversion & calibration: **Phase 15 / Phase 16**.
+
+---
+
+## Final external review corrections
+- **Corrected `forceImage` Terminology:** Chuẩn hóa quy trình dữ liệu: $\text{Legacy } forceImage \xrightarrow{\text{PLANNED mapping}} \text{normalized instructional power } [0.0, 1.0] \xrightarrow{\text{Phase 15/16}} \text{physical parameters}$. Không mô tả `forceImage` như direct numeric speed mapping.
+- **Corrected Deferred Phase Ownership:** Phân định rõ phase owner cho từng gap: `cueAngle` thuộc Phase 15, `thickness` thuộc Phase 6, physical calibration thuộc Phase 15/16.
+- **Corrected Repository Lifecycle Description:** Làm rõ hợp đồng Soft Delete (`includeDeleted`, `softDelete`, `restore`, `purge`) áp dụng cụ thể cho 2 aggregates `Lesson` và `Scene`, các repositories còn lại áp dụng hợp đồng CRUD tương ứng.
+- **Production Behavior Impact:** `NONE` (Không có bất kỳ thay đổi nào trong code sản xuất).
 
 ---
 
