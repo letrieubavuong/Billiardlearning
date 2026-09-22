@@ -1,81 +1,126 @@
-# MASTER SPEC - Billiard Lesson Studio
+# MASTER SPEC - Billiard Learning Studio v2
 
 ## 1. Mục tiêu sản phẩm
 
-Xây dựng ứng dụng Android để:
-- Soạn bài học billiard.
-- Tạo và lưu thế bi.
-- Minh họa đường ngắm, đường bi, điểm chạm, băng, diamond.
-- Mô phỏng chuyển động bi theo vật lý.
-- Xây dựng thư viện kỹ thuật và các bộ số.
-- Tạo bài luyện tập tương tác.
-- Cho phép so sánh đường lý thuyết với đường mô phỏng vật lý.
+Xây dựng ứng dụng Flutter ưu tiên Android cho phép:
+- tạo và tổ chức bài học billiard;
+- dựng và lưu thế bi;
+- chụp bàn thật và dựng lại thế bi trên app;
+- vẽ đường ngắm, đường bi, điểm chạm, băng, diamond và annotation;
+- chạy Teaching Animation theo đường giáo viên dựng;
+- chạy Physics Simulation độc lập;
+- xây dựng thư viện kỹ thuật;
+- xây dựng các bộ số theo hướng data-driven;
+- tạo bài luyện tập tương tác;
+- import/export/backup nội dung;
+- hoạt động local-first/offline.
 
-## 2. Nền tảng
+## 2. Công nghệ
 
-- Android native.
-- Kotlin.
-- Jetpack Compose.
-- Room cho dữ liệu local.
-- Coroutines + Flow.
-- Kiến trúc nhiều module hoặc package boundary rõ ràng.
+- Dart + Flutter.
+- Android là nền tảng phát hành ưu tiên.
+- Pure Dart cho Domain, Geometry, Teaching Core, Physics Core.
+- SQLite local-first; giai đoạn migration có thể tiếp tục dùng `sqflite`.
+- Media lưu file; DB giữ metadata/reference.
+- Camera/vision có thể dùng Flutter plugin hoặc native bridge nếu cần.
 
-## 3. Các engine lõi
+## 3. Entity trung tâm
 
-### BilliardSceneEngine
-Quản lý trạng thái bàn, bi, annotation, trajectory và các đối tượng trực quan.
+`BilliardScene` là entity trung tâm kết nối:
+- Lesson
+- Scene Editor
+- Camera Capture
+- Teaching Simulation
+- Physics Simulation
+- Technique
+- Number System examples
+- Practice
 
-### BilliardPhysicsEngine
-Tính chuyển động, va chạm bi-bi, bi-băng, ma sát, rolling/sliding, spin.
-
-### LessonEngine
-Quản lý cấu trúc course/chapter/lesson/section/block.
-
-### NumberSystemEngine
-Quản lý công thức, biến, mapping diamond, ví dụ và tính toán của các bộ số.
-
-### PracticeEngine
-Quản lý đề bài, đáp án mẫu, lời giải và so sánh phương án người học.
+Mọi nguồn tạo Scene đều quy về một format domain duy nhất.
 
 ## 4. Hai chế độ mô phỏng
 
 ### Teaching Mode
-Đường chạy do người soạn quyết định. Animation chạy theo trajectory đã dựng.
+- đường chạy do người soạn dựng;
+- engine nội suy theo trajectory/timeline;
+- mục tiêu: minh họa sư phạm;
+- không tự nhận là physics thực.
 
 ### Physics Mode
-Người dùng chọn hướng cơ, lực, điểm chạm, spin. Physics engine tự tính đường chạy.
+- input: cue direction, power, tip offset, cue elevation, table profile;
+- engine tính motion, collision, cushion, friction, rolling/sliding, spin;
+- output là simulation/replay data độc lập với renderer.
 
-Hai mode phải tồn tại độc lập nhưng dùng chung scene model.
+## 5. Cấu trúc bài học
 
-## 5. Bất biến kiến trúc
+`Course -> Chapter -> Lesson -> Section -> LessonBlock`
 
-- Physics engine không import Compose/View/Android UI.
-- Rendering không chứa luật nghiệp vụ bài học.
-- Domain model không phụ thuộc Room entity.
-- Room entity không được dùng trực tiếp trong UI.
-- Lesson không sở hữu logic vật lý; lesson chỉ tham chiếu scene/animation/system/technique.
-- Number System phải data-driven, không `if(systemName == ...)`.
-- Tọa độ lưu ở normalized coordinate `[0,1]`.
-- Pixel chỉ tồn tại trong renderer/layout adapter.
+Block tham chiếu entity bằng ID khi cần:
+- Text
+- ImageReference
+- VideoReference
+- Formula
+- Note
+- SceneReference
+- AnimationReference
+- TechniqueReference
+- NumberSystemReference
+- ExerciseReference
 
-## 6. Mức chính xác mục tiêu
+## 6. Number System
 
-Mục tiêu là đủ chính xác để giảng dạy và phân tích:
-- Bi-bi: >= 95% xu hướng/kết quả hình học trong phạm vi mô hình.
-- Bi-băng không spin: >= 95% sau calibration.
-- Ma sát/rolling: >= 95% quãng đường trong bộ dữ liệu calibration.
-- Follow/draw: khoảng 90-95%.
-- Side spin + cushion: khoảng 88-93%.
+Number System là domain riêng, không phải một Note.
+Phải data-driven, có:
+- stable ID;
+- variables;
+- expression/formula;
+- mappings;
+- conditions/corrections;
+- examples;
+- scene references.
 
-Không tuyên bố 100% giống bàn thật.
+## 7. Camera Capture
 
-## 7. Definition of Done chung
+Pipeline chuẩn:
+`Capture -> Table Detection -> Corners -> Homography -> Ball Detection -> Confidence -> Scene Reconstruction -> Manual Correction -> BilliardScene`
 
-Một phase chỉ hoàn tất khi:
-- Build thành công.
-- Test liên quan pass.
-- Không phá phase trước.
-- Có sample/demo tối thiểu.
-- Có migration nếu schema đổi.
-- Tài liệu domain liên quan được cập nhật.
-- Không còn TODO chặn nghiệp vụ chính của phase.
+Camera không tạo loại lesson riêng.
+
+## 8. Storage
+
+- Stable IDs: UUID/String.
+- Lesson/Scene: soft delete.
+- Version history cho nội dung quan trọng.
+- Media: asset entity + file path/checksum.
+- Backup phải bao gồm DB + media + manifest.
+
+## 9. Legacy compatibility
+
+Repo cũ có giá trị ở:
+- table renderer;
+- drag/drop ball;
+- trajectory editor;
+- labels/angles/ghost ball;
+- undo/redo;
+- block editor UX;
+- versioned codec idea;
+- repository abstraction idea.
+
+Nhưng phải migrate khỏi:
+- `Note` làm Lesson/System/Technique;
+- JSON scene nhúng trong `NoteBlock.content`;
+- `DiagramSystem` enum hard-coded;
+- hard delete integer IDs;
+- animation giả physics trong painter;
+- business state trong SharedPreferences.
+
+## 10. Definition of Done chung
+
+Một phase chỉ DONE khi:
+- code build/analyze pass theo scope;
+- tests liên quan pass;
+- không phá phase trước;
+- không tạo dependency ngược boundary;
+- migration/compatibility được xử lý nếu schema đổi;
+- acceptance criteria được báo PASS/FAIL rõ;
+- không có TODO chặn nghiệp vụ chính của phase.

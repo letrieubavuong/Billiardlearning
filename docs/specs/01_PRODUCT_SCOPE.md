@@ -1,35 +1,35 @@
 # PRODUCT SCOPE
 
-## Người dùng chính
+## Product vision
+Một studio học và phân tích billiard trên Flutter/Android, tập trung trước vào carom/3-cushion.
 
-### Author
-Người tạo nội dung: tạo lesson, scene, kỹ thuật, bộ số, bài tập.
+## Author Mode
+- tạo/sửa/xóa/nhân bản bài học;
+- dựng thế bi bằng tay;
+- chụp bàn thật và dựng Scene;
+- vẽ trajectory/annotation;
+- gắn kỹ thuật/bộ số;
+- tạo teaching animation;
+- tạo bài tập.
 
-### Learner
-Người học: xem lesson, chạy mô phỏng, thử cú đánh, làm practice.
+## Learn Mode
+- đọc bài;
+- xem Scene;
+- replay Teaching/Physics;
+- thực hành;
+- lưu tiến độ/favorite.
 
-## Use cases chính
+## Không phải mục tiêu MVP
+- social network;
+- marketplace;
+- multiplayer;
+- 3D photorealistic rendering;
+- tuyên bố physics 100% giống bàn thật.
 
-1. Tạo thế bi mới.
-2. Đặt bi bằng kéo thả hoặc nhập tọa độ.
-3. Hiện diamond và số bàn.
-4. Vẽ đường ngắm.
-5. Vẽ trajectory nhiều đoạn.
-6. Gán điểm chạm băng.
-7. Chạy Teaching Mode.
-8. Chọn lực/effet và chạy Physics Mode.
-9. Lưu scene vào lesson.
-10. Tạo kỹ thuật từ một hoặc nhiều scene.
-11. Tạo Number System với biến/công thức.
-12. Tạo bài tập yêu cầu học viên chọn đường đánh.
-13. Replay chậm và xem từng sự kiện va chạm.
-
-## Ngoài phạm vi MVP
-
-- Multiplayer realtime.
-- AR nhận diện bàn thật.
-- Computer vision tự nhận dạng thế bi từ camera.
-- Marketplace cộng đồng.
-- 3D đầy đủ.
-
-Các mục này chỉ xem xét sau khi core 2D ổn định.
+## Ưu tiên
+1. Domain đúng.
+2. Scene editor ổn định.
+3. Lesson CRUD đúng.
+4. Camera reconstruction.
+5. Physics core.
+6. Number System/Technique/Practice.

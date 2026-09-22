@@ -1,29 +1,31 @@
-# Billiard Lesson Studio - Android
+# Billiard Learning Studio - Flutter Architecture v2
 
-Bộ tài liệu nguồn chuẩn để Codex phát triển ứng dụng Android dạy và mô phỏng billiard.
+Bộ tài liệu này là **Source of Truth mới** cho repository `Billiardlearning`.
 
-## Nguyên tắc bắt buộc
+Mục tiêu của lần tái cấu trúc này là **giữ Dart + Flutter và tận dụng phần UI/editor cũ có giá trị**, đồng thời thay xương sống nghiệp vụ cũ kiểu `Note + JSON block` bằng kiến trúc đúng cho một ứng dụng dạy, dựng thế bi và mô phỏng billiard.
 
-1. Trước khi sửa code, Codex phải đọc `docs/MASTER_SPEC.md` và phase hiện tại.
-2. Không tự ý thay đổi domain model nếu chưa cập nhật tài liệu liên quan.
-3. Không hard-code hệ thống bộ số, kỹ thuật hoặc bài học vào UI.
-4. Tách riêng `domain`, `simulation`, `rendering`, `data`, `feature`.
-5. Physics engine không phụ thuộc UI Android.
-6. Tất cả tọa độ nghiệp vụ dùng hệ tọa độ chuẩn hóa, không lưu pixel màn hình.
-7. Mỗi phase phải đạt acceptance criteria trước khi chuyển phase tiếp theo.
+## Nguyên tắc cốt lõi
 
-## Thứ tự đọc
+- Flutter/Dart là nền tảng chính.
+- Domain, geometry và physics là **pure Dart**.
+- `BilliardScene` là entity trung tâm được dùng chung bởi Lesson, Camera, Teaching, Physics, Technique và Practice.
+- Lesson chỉ tham chiếu Scene/Technique/NumberSystem/Exercise qua stable ID.
+- Teaching Animation và Physics Simulation là hai hệ thống độc lập.
+- Không hard-code bộ số trong enum/if/switch theo tên.
+- Không dùng pixel làm dữ liệu nghiệp vụ.
+- Lesson/Scene dùng stable UUID/String ID và soft delete.
+- Media lớn lưu file; SQLite chỉ lưu metadata/reference.
+- Không phá compatibility dữ liệu cũ trước khi migration hoàn tất.
 
-1. `docs/MASTER_SPEC.md`
-2. `docs/00_ROADMAP.md`
-3. `docs/specs/01_PRODUCT_SCOPE.md`
-4. `docs/specs/02_DOMAIN_MODEL.md`
-5. File nghiệp vụ tương ứng phase hiện tại
-6. `docs/specs/15_CODEX_WORKING_RULES.md`
-7. File `docs/phases/PHASE_XX_*.md` tương ứng
+## Thứ tự Codex phải đọc
 
-## File điều khiển Codex
+1. `AGENTS.md`
+2. `docs/MASTER_SPEC.md`
+3. `docs/00_ROADMAP.md`
+4. `docs/specs/01_PRODUCT_SCOPE.md`
+5. `docs/specs/02_DOMAIN_MODEL.md`
+6. Spec liên quan phase hiện tại
+7. `docs/specs/16_CODEX_WORKING_RULES.md`
+8. `docs/phases/<phase-hien-tai>.md`
 
-- `AGENTS.md`: quy tắc bắt buộc toàn repo.
-- `docs/PHASE_STATUS.md`: trạng thái từng phase.
-- `CODEX_BOOTSTRAP_PROMPT.md`: prompt khởi động để giao Codex.
+Không bắt đầu feature mới trước khi hoàn thành `PHASE_-1_LEGACY_AUDIT_AND_SPEC_RESET.md`.

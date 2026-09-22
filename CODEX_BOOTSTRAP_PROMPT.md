@@ -1,34 +1,32 @@
-# PROMPT KHỞI ĐỘNG CHO CODEX
+# CODEX BOOTSTRAP PROMPT
 
-Bạn đang phát triển dự án Android `Billiard Lesson Studio`.
+Bạn đang làm việc trong repository Billiardlearning viết bằng **Dart + Flutter**.
 
-Trước khi sửa code, bắt buộc thực hiện theo thứ tự:
+## Bắt buộc trước khi sửa code
 
-1. Đọc toàn bộ `docs/MASTER_SPEC.md`.
-2. Đọc `docs/00_ROADMAP.md`.
-3. Đọc `docs/specs/15_CODEX_WORKING_RULES.md`.
-4. Đọc các spec nghiệp vụ liên quan đến phase được giao.
-5. Đọc file trong `docs/phases/` tương ứng phase hiện tại.
-6. Khảo sát code hiện có và đối chiếu với spec.
+1. Đọc `AGENTS.md`.
+2. Đọc `docs/MASTER_SPEC.md`.
+3. Đọc `docs/00_ROADMAP.md`.
+4. Đọc `docs/specs/01_PRODUCT_SCOPE.md`.
+5. Đọc `docs/specs/02_DOMAIN_MODEL.md`.
+6. Đọc `docs/specs/16_CODEX_WORKING_RULES.md`.
+7. Đọc file phase được giao.
+8. Chỉ đọc thêm spec có liên quan trực tiếp đến phase đó.
 
-Nguyên tắc bắt buộc:
-- Không tự ý làm sang phase tiếp theo.
-- Không hard-code Number System, Technique, Lesson vào UI.
-- Physics engine phải là pure Kotlin và không phụ thuộc Android UI.
-- Domain không phụ thuộc Room/Compose.
-- Tọa độ nghiệp vụ là normalized/world coordinate, không lưu pixel.
-- Mỗi thay đổi phải có test phù hợp.
-- Không rewrite phần ổn định ngoài phạm vi phase.
+## Tình trạng repo
 
-Khi hoàn thành nhiệm vụ, báo cáo đúng cấu trúc:
+Repo chứa một Flutter app cũ đã có nhiều UI/editor đáng giữ, nhưng domain cũ phần lớn dựa trên `Note + NoteBlock + JSON content` và không còn là kiến trúc đích.
 
-## 1. Summary
-## 2. Files changed
-## 3. Architecture impact
-## 4. Database/schema impact
-## 5. Tests
-## 6. Acceptance criteria: PASS/FAIL từng mục
-## 7. Manual verification steps
-## 8. Known limitations
+Không được:
+- rewrite toàn bộ app từ đầu;
+- đổi sang Kotlin Native;
+- xóa editor cũ trước khi migration hoàn tất;
+- coi animation hiện tại là physics engine;
+- làm sang phase kế tiếp.
 
-Không tuyên bố phase hoàn thành nếu còn acceptance criteria FAIL.
+## Phase đầu tiên
+
+Bắt đầu bằng:
+`docs/phases/PHASE_-1_LEGACY_AUDIT_AND_SPEC_RESET.md`
+
+Mục tiêu đầu tiên là lập bản đồ KEEP / MIGRATE / REWRITE / REMOVE-LATER và tạo đường migration an toàn, không phải xây feature mới.

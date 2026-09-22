@@ -1,87 +1,103 @@
-# ROADMAP TỔNG THỂ
+# ROADMAP TỔNG THỂ - FLUTTER v2
 
-## Mốc A - Nền móng
+## Mốc A - Cứu repo cũ và dựng nền móng
 
-### Phase 0 - Domain Architecture
-Mục tiêu: chốt domain, module boundary, naming, dữ liệu.
-Kết quả: project skeleton + domain models + repository contracts.
+### Phase -1 - Legacy Audit & Specification Reset
+Audit toàn repo, lập KEEP/MIGRATE/REWRITE/REMOVE-LATER, cập nhật spec và migration map. Không làm feature mới.
 
-### Phase 1 - Android Foundation
-Mục tiêu: app shell, navigation, theme, Room, DI/state.
-Kết quả: app chạy ổn định, CRUD mẫu hoạt động.
+### Phase 0 - Pure Dart Domain Foundation
+Tạo domain/value objects/repository contracts thuần Dart.
 
-## Mốc B - Scene Editor
+### Phase 1 - Repository + SQLite Architecture
+Tạo data entities/mappers/repository implementations và migration nền móng.
 
-### Phase 2 - Table Coordinate System
-Mục tiêu: hệ tọa độ chuẩn hóa, mapping world-screen.
-Kết quả: renderer bàn không phụ thuộc kích thước màn hình.
+### Phase 2 - Scene Model + Coordinate System
+Chốt BilliardScene, TableCoordinate, PhysicsWorld mapping.
 
-### Phase 3 - Table & Ball Editor
-Mục tiêu: đặt/kéo/xóa/duplicate bi, diamond, zoom/pan, undo/redo.
-Kết quả: tạo và lưu một thế bi hoàn chỉnh.
+### Phase 3 - Scene Renderer Refactor
+Tách renderer khỏi widget/god-file cũ, không đổi UX lớn.
 
-### Phase 4 - Trajectory Mathematics
-Mục tiêu: line, segment, point, angle, intersection, path geometry.
-Kết quả: có thư viện hình học dùng chung.
+### Phase 4 - Scene Editor Migration
+Tách controller/state/tools/history, chuyển diagram cũ sang Scene.
 
-### Phase 5 - Trajectory Editor
-Mục tiêu: vẽ đường ngắm, đường chạy, điểm chạm, điểm băng.
-Kết quả: dựng được bài minh họa không cần physics.
+### Phase 5 - Teaching Trajectory + Animation
+Giữ animation cũ nhưng chuyển thành Teaching Simulation rõ ràng.
 
-## Mốc C - Physics Core
+## Mốc B - Lesson đúng nghiệp vụ
 
-### Phase 6 - Ball Motion Engine
-Mục tiêu: tích phân chuyển động, time step cố định, stop threshold.
+### Phase 6 - Lesson Domain + Lesson Builder
+Course/Chapter/Lesson/Section/Block, CRUD, autosave, preview.
 
-### Phase 7 - Ball-Ball Collision
-Mục tiêu: phát hiện và xử lý va chạm 2 bi.
+### Phase 7 - Scene Sharing + Versioning
+Shared scene, clone-on-edit, version history, soft delete/restore.
 
-### Phase 8 - Cushion Collision
-Mục tiêu: va chạm băng, hệ số đàn hồi và ma sát băng.
+## Mốc C - Camera Capture
 
-### Phase 9 - Friction / Sliding / Rolling
-Mục tiêu: chuyển trạng thái trượt -> lăn -> dừng.
+### Phase 8A - Camera Infrastructure
+Permissions, capture pipeline, image lifecycle.
 
-### Phase 10 - Spin Engine
-Mục tiêu: top/bottom/side spin, spin decay và ảnh hưởng quỹ đạo.
+### Phase 8B - Table Detection
+Detect playfield/corners và manual corner correction.
 
-### Phase 11 - Cue Strike Model
-Mục tiêu: ánh xạ hướng cơ, lực và điểm chạm thành v, omega.
+### Phase 8C - Perspective Transform
+Homography/perspective correction và mapping về table coordinate.
 
-### Phase 12 - Physics Calibration
-Mục tiêu: bộ tham số theo từng bàn, test data và sai số.
-Kết quả: Physics Core v1.
+### Phase 8D - Ball Detection
+Nhận diện bi carom đỏ/trắng/vàng + confidence.
 
-## Mốc D - Nội dung dạy học
+### Phase 8E - Scene Reconstruction
+DetectionResult -> BilliardScene + manual correction + save.
 
-### Phase 13 - Lesson Builder
-Mục tiêu: course/chapter/lesson/section/block, preview và reorder.
+## Mốc D - Physics Core
 
-### Phase 14 - Technique Library
-Mục tiêu: thư viện kỹ thuật, tag, mức độ, scene minh họa.
+### Phase 9 - Physics Geometry + Fixed Time Step
+Pure Dart vector/math/time-step nền móng.
 
-### Phase 15 - Number System Engine
-Mục tiêu: bộ số data-driven, công thức, biến, diamond mapping.
+### Phase 10 - Ball Motion + Friction
+Motion cơ bản, stop threshold, friction model v1.
 
-### Phase 16 - Interactive Practice
-Mục tiêu: bài tập tương tác và so sánh phương án người học.
+### Phase 11 - Ball-Ball Collision
+Detection + response + test cases.
 
-### Phase 17 - Animation / Replay
-Mục tiêu: play/pause/scrub/slow-motion/step collision.
+### Phase 12 - Cushion Collision
+Cushion geometry, restitution/friction v1.
 
-## Mốc E - Hoàn thiện
+### Phase 13 - Sliding + Rolling
+State transitions và energy/spin coupling cơ bản.
 
-### Phase 18 - Import / Export / Backup
-Mục tiêu: JSON package, backup, restore, media references.
+### Phase 14 - Spin Engine
+Top/bottom/side spin và decay.
 
-### Phase 19 - UX Polish / Performance
-Mục tiêu: tối ưu FPS, tablet layouts, accessibility cơ bản.
+### Phase 15 - Cue Strike Model
+Cue input -> linear/angular velocity.
 
-### Phase 20 - Release Readiness
-Mục tiêu: crash handling, telemetry tùy chọn, migration tests, signed build.
+### Phase 16 - Physics Calibration
+Table profile + experimental dataset + error metrics.
+
+## Mốc E - Nội dung nâng cao
+
+### Phase 17 - Number System Engine
+Variables/formulas/mappings/corrections/examples data-driven.
+
+### Phase 18 - Technique Library
+Technique entity, tags, difficulty, scene references.
+
+### Phase 19 - Practice Engine
+Interactive task, reference solution, comparison/evaluation.
+
+## Mốc F - Dữ liệu và release
+
+### Phase 20 - Media + Package Import/Export
+MediaAsset + package manifest + content dependencies.
+
+### Phase 21 - Backup + Restore
+Backup DB + media + manifest; validation/rollback.
+
+### Phase 22 - Performance + Android Release
+Profiling, large-screen UX, crash handling, release migration tests, signed Android build.
 
 ---
 
 ## Quy tắc chuyển phase
 
-Không làm phase N+1 nếu acceptance criteria quan trọng của phase N chưa đạt, trừ khi tài liệu phase N+1 ghi rõ có thể phát triển song song.
+Không làm phase kế tiếp khi acceptance criteria quan trọng của phase hiện tại chưa đạt, trừ khi file phase ghi rõ có thể phát triển song song.

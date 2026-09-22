@@ -1,27 +1,43 @@
-# DOCUMENT INDEX
+# INDEX
 
-## Core
-- `MASTER_SPEC.md` - nguồn chuẩn cao nhất của dự án.
-- `00_ROADMAP.md` - roadmap Phase 0 đến Phase 20.
-- `PHASE_STATUS.md` - trạng thái triển khai.
+## Core documents
+- `MASTER_SPEC.md`
+- `00_ROADMAP.md`
+- `PHASE_STATUS.md`
+- `ARCHITECTURE_DECISIONS.md`
 
-## Business / Technical Specs
-- `specs/01_PRODUCT_SCOPE.md`
-- `specs/02_DOMAIN_MODEL.md`
-- `specs/03_TABLE_COORDINATE_SYSTEM.md`
-- `specs/04_SCENE_EDITOR.md`
-- `specs/05_TRAJECTORY_ENGINE.md`
-- `specs/06_PHYSICS_ENGINE.md`
-- `specs/07_COLLISION_AND_CUSHION.md`
-- `specs/08_SPIN_AND_CUE.md`
-- `specs/09_LESSON_BUILDER.md`
-- `specs/10_NUMBER_SYSTEM_ENGINE.md`
-- `specs/11_PRACTICE_ENGINE.md`
-- `specs/12_DATA_AND_STORAGE.md`
-- `specs/13_ANDROID_ARCHITECTURE.md`
-- `specs/14_TESTING_AND_ACCEPTANCE.md`
-- `specs/15_CODEX_WORKING_RULES.md`
+## Specs
+- `01_PRODUCT_SCOPE.md`
+- `02_DOMAIN_MODEL.md`
+- `03_SCENE_AND_COORDINATES.md`
+- `04_SCENE_EDITOR.md`
+- `05_LESSON_ENGINE.md`
+- `06_TEACHING_SIMULATION.md`
+- `07_CAMERA_CAPTURE.md`
+- `08_PHYSICS_ENGINE.md`
+- `09_NUMBER_SYSTEM_ENGINE.md`
+- `10_TECHNIQUE_AND_PRACTICE.md`
+- `11_DATA_AND_STORAGE.md`
+- `12_MEDIA_ASSET.md`
+- `13_IMPORT_EXPORT_BACKUP.md`
+- `14_FLUTTER_ARCHITECTURE.md`
+- `15_TESTING_AND_ACCEPTANCE.md`
+- `16_CODEX_WORKING_RULES.md`
+- `17_LEGACY_MIGRATION.md`
 
-## Phase Documents
-Mỗi phase từ 00 đến 20 có một file riêng trong `docs/phases/`.
-Chỉ giao cho Codex phase hiện tại và các spec liên quan.
+## AI Agents
+- `A00_ARCHITECTURE_GUARDIAN.md`
+- `A01_LEGACY_MIGRATION.md`
+- `A02_SCENE_DOMAIN.md`
+- `A03_SCENE_EDITOR.md`
+- `A04_TEACHING_SIMULATION.md`
+- `A05_PHYSICS.md`
+- `A06_CAMERA_VISION.md`
+- `A07_LESSON.md`
+- `A08_NUMBER_SYSTEM.md`
+- `A09_TECHNIQUE_PRACTICE.md`
+- `A10_DATA_MEDIA.md`
+- `A11_QA_ARCHITECTURE_TEST.md`
+
+## Phases
+Bắt đầu từ `PHASE_-1_LEGACY_AUDIT_AND_SPEC_RESET.md`, sau đó theo `00_ROADMAP.md`.

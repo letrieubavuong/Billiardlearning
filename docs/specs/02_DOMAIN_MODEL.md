@@ -2,14 +2,28 @@
 
 ## Aggregate chính
 
+### BilliardScene
+- id: SceneId
+- name
+- tableConfig
+- balls
+- trajectories
+- annotations
+- cueInstruction optional
+- teachingTimeline optional
+- source: MANUAL/CAMERA/IMPORT/GENERATED
+- status
+- version
+- createdAt/updatedAt/deletedAt
+
 ### Lesson
-- id
-- title
-- description
+- id: LessonId
 - chapterId
-- order
+- title/subtitle
 - sections
-- tags
+- status: DRAFT/READY/PUBLISHED/ARCHIVED/DELETED
+- version
+- timestamps
 
 ### LessonSection
 - id
@@ -18,93 +32,46 @@
 - blocks
 
 ### LessonBlock
-Các subtype:
-- TextBlock
-- ImageBlock
-- FormulaBlock
-- NoteBlock
-- SceneBlock
-- AnimationBlock
-- TechniqueBlock
-- NumberSystemBlock
-- ExerciseBlock
-
-### BilliardScene
-- id
-- title
-- tableConfig
-- balls
-- trajectories
-- annotations
-- cueSetup?
-- simulationProfileId?
-
-### BallState
-- id
-- role: CUE | OBJECT | TARGET | AUXILIARY
-- position: Vec2
-- velocity: Vec2
-- angularVelocity: Vec3
-- radius
-- mass
-- color/style
-- motionState
-
-### Trajectory
-- id
-- ballId
-- segments
-- source: MANUAL | PHYSICS
-
-### PathSegment
-Subtype đề xuất:
-- LineSegment
-- CushionSegment
-- CollisionSegment
-- CurveSegment
-- StopSegment
+Các loại block phải type-safe. Reference block chỉ giữ stable ID + presentation metadata nhỏ.
 
 ### Technique
-- id
-- name
-- category
-- level
-- theory
+- id/name/group/difficulty/tags
+- content
 - sceneIds
-- tags
+- recommended cue instructions
 
 ### NumberSystem
-- id
-- name
+- id/name/description
 - variables
-- formulaDefinition
-- diamondMapping
-- examples
-- notes
+- expression/model
+- mappings
+- conditions/corrections
+- exampleSceneIds
 
 ### Exercise
 - id
 - prompt
-- initialSceneId
-- expectedSolution
-- scoringRule
-- hints
+- sceneId
+- expected/reference solution
+- evaluation rules
 
-## Value Objects
+### MediaAsset
+- id
+- type
+- localPath
+- mimeType
+- size/checksum
+- timestamps
 
+## Value objects
 - Vec2
-- Vec3
-- NormalizedPoint
+- Vec3 nếu physics cần
+- TablePoint(u,v)
+- WorldPoint(x,y)
 - Angle
-- Speed
-- SpinVector
-- CueContactPoint
-- PowerLevel
-- CushionId
+- SceneId/LessonId/... wrapper nếu practical
+- SpinInput
+- CueInput
 
-## Quy tắc
-
-- Domain model immutable khi có thể.
-- Dùng copy/new state thay cho mutate UI-driven.
-- Không chứa Android Context.
-- Không chứa annotation Room trong domain package.
+## Quy tắc dependency
+Domain không biết Flutter, SQLite, file system, CameraX, OpenCV hay Widget.

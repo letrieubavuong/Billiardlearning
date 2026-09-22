@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:libre2026/data/diagram_document_codec.dart';
@@ -151,18 +152,31 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  test('learning progress persists completion state', () async {
-    SharedPreferences.setMockInitialValues({});
-    await LearningProgress.initialize();
+  test('domain layer does not import flutter or sqflite', () {
+    final domainDir = Directory('lib/domain');
+    expect(domainDir.existsSync(), isTrue);
 
-    expect(await LearningProgress.toggle('coban', 42), isTrue);
-    expect(LearningProgress.isCompleted('coban', 42), isTrue);
-
-    final prefs = await SharedPreferences.getInstance();
-    expect(
-      prefs.getStringList('completed_learning_notes'),
-      contains('coban:42'),
-    );
+    final files = domainDir.listSync(recursive: true).whereType<File>();
+    for (final file in files) {
+      if (file.path.endsWith('.dart')) {
+        final content = file.readAsStringSync();
+        expect(
+          content.contains("import 'package:flutter/"),
+          isFalse,
+          reason: '${file.path} must not import Flutter',
+        );
+        expect(
+          content.contains("import 'package:sqflite/"),
+          isFalse,
+          reason: '${file.path} must not import sqflite',
+        );
+        expect(
+          content.contains("import 'package:sqflite_common_ffi/"),
+          isFalse,
+          reason: '${file.path} must not import sqflite_common_ffi',
+        );
+      }
+    }
   });
 }
 

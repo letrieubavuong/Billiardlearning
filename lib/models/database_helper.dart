@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import '../data/database/vnext_tables.dart';
 import 'note_model.dart';
 import 'system_notes.dart';
 
 class DatabaseHelper {
-  static const _databaseVersion = 2;
+  static const _databaseVersion = 3;
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
 
@@ -50,14 +51,17 @@ class DatabaseHelper {
       )
     ''');
     await _createMetadataTable(db);
-
     await _createIndexes(db);
+    await VNextTables.createAll(db);
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await _createMetadataTable(db);
       await _createIndexes(db);
+    }
+    if (oldVersion < 3) {
+      await VNextTables.createAll(db);
     }
   }
 

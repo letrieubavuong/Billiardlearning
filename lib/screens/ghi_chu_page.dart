@@ -145,4 +145,3 @@ class GhiChuPageState extends State<GhiChuPage>
     );
   }
 }
-

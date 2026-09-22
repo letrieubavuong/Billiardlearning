@@ -1,41 +1,31 @@
 # SCENE EDITOR
 
-## Chức năng bắt buộc
+## Chức năng
+- create/open/save Scene;
+- add/move/remove balls;
+- chọn cue ball;
+- trajectory/path tool;
+- straight segment;
+- contact/cushion marker;
+- label/angle/annotation;
+- ghost ball;
+- snap diamond/grid optional;
+- undo/redo;
+- zoom/pan;
+- duplicate Scene;
+- preview Teaching Animation.
 
-- Add ball.
-- Delete ball.
-- Drag ball.
-- Multi-select.
-- Duplicate.
-- Lock position.
-- Snap tùy chọn.
-- Toggle diamond.
-- Toggle labels.
-- Add annotation.
-- Undo/redo.
-- Save/load scene.
+## Kiến trúc
+Tách:
+- `SceneEditorController`
+- immutable `SceneEditorState`
+- tool handlers
+- command/history stack
+- renderer
+- persistence adapter
 
-## Gesture
+## Legacy reuse
+Có thể tái sử dụng logic UX từ `diagram_builder_page.dart`, nhưng không giữ god-file 5000+ dòng làm kiến trúc đích.
 
-- Tap: select.
-- Drag ball: move selected ball.
-- Drag background: pan khi ở navigation mode.
-- Pinch: zoom.
-- Long press: context action.
-
-## Editor State
-
-Không dùng trực tiếp Room state.
-Nên có:
-`SceneEditorState(scene, selection, viewport, tool, history)`
-
-## Undo/Redo
-
-Dùng command/history snapshot hợp lý.
-Mọi thay đổi nội dung scene phải đi qua editor action để có thể undo.
-
-## Validation
-
-- Bi không được lưu ngoài playable area trừ khi author cố ý bật debug.
-- Hai bi overlap phải cảnh báo.
-- Scene vẫn lưu được nếu trajectory chưa hoàn chỉnh nhưng phải có trạng thái draft.
+## Save contract
+Editor lưu `BilliardScene`, không trả raw JSON để nhét vào LessonBlock.
