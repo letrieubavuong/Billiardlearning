@@ -19,6 +19,14 @@ class PathTiming {
 class LegacyPlaybackCompatibility {
   const LegacyPlaybackCompatibility();
 
+  /// Legacy match tolerance threshold for trajectory start/path matching.
+  static const double pathMatchTolerance = 0.05;
+
+  /// Checks if two points are within [pathMatchTolerance] visual distance.
+  static bool isWithinPathMatchTolerance(TablePoint p1, TablePoint p2) {
+    return distance(p1, p2) < pathMatchTolerance;
+  }
+
   /// Calculates legacy visual distance between two [TablePoint]s:
   ///
   /// `dist = sqrt((u2 - u1)^2 + (2 * (v2 - v1))^2)`
@@ -46,7 +54,8 @@ class LegacyPlaybackCompatibility {
     if (points.length == 1 || t <= 0.0) return points.first;
     if (t >= 1.0) return points.last;
 
-    // Apply quadratic ease-out to simulate rolling friction deceleration
+    // Apply the legacy quadratic ease-out used for visual deceleration.
+    // This is compatibility playback, not physics.
     final double easedT = t * (2.0 - t);
 
     double totalLength = 0.0;
@@ -76,10 +85,15 @@ class LegacyPlaybackCompatibility {
   }
 
   /// Returns progressive points up to fraction [t] in [0, 1].
-  static List<TablePoint> getProgressivePoints(List<TablePoint> points, double t) {
+  static List<TablePoint> getProgressivePoints(
+    List<TablePoint> points,
+    double t,
+  ) {
     if (points.isEmpty) return [];
     if (t >= 1.0) return points;
 
+    // Apply the legacy quadratic ease-out used for visual deceleration.
+    // This is compatibility playback, not physics.
     final double easedT = t * (2.0 - t);
 
     double totalLength = 0.0;
@@ -150,14 +164,14 @@ class LegacyPlaybackCompatibility {
             if (u < 0.0) u = 0.0;
             if (u > 1.0) u = 1.0;
 
-            final TablePoint closest =
-                TablePoint(A.u + u * du, A.v + u * (B.v - A.v));
-            final double dist = distance(startPoint, closest);
+            final TablePoint closest = TablePoint(
+              A.u + u * du,
+              A.v + u * (B.v - A.v),
+            );
 
-            if (dist < 0.1) {
+            if (isWithinPathMatchTolerance(startPoint, closest)) {
               final double hitDist = currentDist + u * segLen;
-              final double frac =
-                  lengths[j] > 0 ? (hitDist / lengths[j]) : 0.0;
+              final double frac = lengths[j] > 0 ? (hitDist / lengths[j]) : 0.0;
               if (frac < earliestCollisionFraction) {
                 earliestCollisionFraction = frac;
                 bestParent = j;

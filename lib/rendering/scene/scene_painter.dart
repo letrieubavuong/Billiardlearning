@@ -110,11 +110,10 @@ class ScenePainter extends CustomPainter {
         for (int i = 0; i < model.trajectories.length; i++) {
           final path = model.trajectories[i];
           if (path.points.isNotEmpty) {
-            final double dist = LegacyPlaybackCompatibility.distance(
+            if (LegacyPlaybackCompatibility.isWithinPathMatchTolerance(
               ball.position,
               path.points.first,
-            );
-            if (dist < 0.1) {
+            )) {
               // Draw ghost shadow at initial position
               ballRenderer.drawGhostShadow(
                 canvas,

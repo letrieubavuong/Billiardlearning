@@ -182,6 +182,36 @@ void main() {
       },
     );
 
+    test(
+      'Domain extra ball with legacyType=1 converts to isGhost=false and ballTypeIndex=1',
+      () {
+        final now = DateTime.now();
+        final scene = BilliardScene(
+          id: 'scene-extra-half',
+          name: 'Half Extra Scene',
+          balls: const [
+            BallPosition(
+              id: 'half-extra',
+              ballType: 'extra',
+              position: TablePoint(0.5, 0.5),
+              legacyType: 1,
+            ),
+          ],
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        final renderModel = LegacyRenderAdapter.sceneToRenderModel(
+          scene: scene,
+        );
+        final ballItem = renderModel.balls.single;
+
+        expect(ballItem.isGhost, isFalse);
+        expect(ballItem.ballTypeIndex, equals(1));
+        expect(ballItem.opacity, equals(1.0));
+      },
+    );
+
     testWidgets('BilliardDiagram delegates to new renderer without exception', (
       tester,
     ) async {

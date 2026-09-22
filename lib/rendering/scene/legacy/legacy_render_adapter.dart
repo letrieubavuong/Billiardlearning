@@ -45,7 +45,7 @@ class LegacyRenderAdapter {
         }
       }
 
-      final bool isGhost = b.ballType == 'ghost' || b.legacyType == 1;
+      final bool isGhost = b.ballType == 'ghost';
 
       int typeIndex;
       if (b.legacyType != null) {
@@ -95,8 +95,9 @@ class LegacyRenderAdapter {
       viewIndex.clamp(0, SceneViewMode.values.length - 1),
     );
 
-    // Derive hasBottomRail: true for full (0) and halfWidth (4), false otherwise
-    final bool hasBottomRail = (viewIndex == 0 || viewIndex == 4);
+    // Derive hasBottomRail from resolved viewMode
+    final bool hasBottomRail =
+        viewMode == SceneViewMode.full || viewMode == SceneViewMode.halfWidth;
 
     final int sysIndex = scene.presentationConfig?.legacySystemIndex ?? 0;
 

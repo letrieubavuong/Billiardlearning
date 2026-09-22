@@ -110,5 +110,25 @@ void main() {
       expect(vDist, closeTo(0.5, 1e-6));
       expect(hDist, equals(vDist));
     });
+
+    test(
+      'pathMatchTolerance boundary matching (0.04 matches, 0.075 does not)',
+      () {
+        const p1 = TablePoint(0.5, 0.5);
+        // Distance 0.04: u offset 0.04 -> dist = sqrt(0.04^2) = 0.04 < 0.05
+        const pMatch = TablePoint(0.54, 0.5);
+        // Distance 0.075: u offset 0.075 -> dist = sqrt(0.075^2) = 0.075 > 0.05
+        const pNoMatch = TablePoint(0.575, 0.5);
+
+        expect(
+          LegacyPlaybackCompatibility.isWithinPathMatchTolerance(p1, pMatch),
+          isTrue,
+        );
+        expect(
+          LegacyPlaybackCompatibility.isWithinPathMatchTolerance(p1, pNoMatch),
+          isFalse,
+        );
+      },
+    );
   });
 }

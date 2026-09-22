@@ -70,7 +70,7 @@ Báo cáo nghiệm thu hoàn tất các hạng mục của **Phase 0 — Pure Da
 ---
 
 ## Sample BilliardScene test
-- Unit test tại [test/domain_foundation_test.dart](file:///c:/Lap%20trinh%20Android/Libre2026/Billiardlearning/test/domain_foundation_test.dart) khởi tạo thành công một đối tượng `BilliardScene` đầy đủ phức tạp:
+- Unit test tại [test/domain_foundation_test.dart](../../test/domain_foundation_test.dart) khởi tạo thành công một đối tượng `BilliardScene` đầy đủ phức tạp:
   - UUID v4 generated ID.
   - Cấu hình bàn `carom_3c` ($1.42m \times 2.84m$).
   - Vị trí 3 bi (bi chủ trắng, bi vàng, bi đỏ) sử dụng `TablePoint(u,v)`.

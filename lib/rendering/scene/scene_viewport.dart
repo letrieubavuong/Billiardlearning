@@ -1,6 +1,3 @@
-// Viewport and coordinate rendering transformations for Billiardlearning Phase 3
-
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../domain/value_objects/value_objects.dart';
 

@@ -14,19 +14,22 @@ Tất cả các góp ý của External Reviewer đã được sửa triệt đ�
    Đã sửa `SceneViewport` để tính `fullTablePixelWidth` ($4 \times \text{diamondSpacing}$) và `fullTablePixelHeight` ($8 \times \text{diamondSpacing}$). Các chế độ view cắt bàn (`half`, `third`, `quarter`, `halfWidth`,...) sử dụng cùng tỉ lệ diamond và không bị co kéo/bóp méo hình ảnh bàn.
 3. **View Boundaries & Inverse Viewport**:
    Đã cập nhật phạm vi hiển thị cho cả 8 chế độ view và đảm bảo phép chuyển đổi ngược `offsetToTablePoint(tablePointToOffset(pt))` chính xác trên 100% các chế độ view mode.
-4. **Legacy Playback Metric**:
-   Đã tạo `LegacyPlaybackCompatibility.distance()` tính khoảng cách theo công thức chuẩn 1:2 aspect ratio:
-   $$\text{dist} = \sqrt{\Delta u^2 + (2 \times \Delta v)^2}$$
-   Đã kiểm tra khoảng cách 2 nút ngang (`TablePoint(0,0)` $\rightarrow$ `TablePoint(0.5,0)`) và 2 nút dọc (`TablePoint(0,0)` $\rightarrow$ `TablePoint(0,0.25)`) có độ dài đại số legacy bằng nhau (= 0.5).
-5. **Domain Ghost & Extra Ball Semantics**:
-   `LegacyRenderAdapter.sceneToRenderModel()` đã xử lý đúng:
-   * Bi ghost domain (`ballType = 'ghost'` hoặc `legacyType = 1`) $\rightarrow$ `isGhost = true`, `opacity = 0.5`.
-   * Bi extra domain (`ballType = 'extra'` có nhãn) $\rightarrow$ `ballTypeIndex = 2` (bi đánh số) và hiển thị số tương ứng.
-6. **Domain `hasBottomRail` Correction**:
-   Tự động suy ra `hasBottomRail = true` cho `full` (0) và `halfWidth` (4), `false` cho các chế độ view cắt ngắn khác.
-7. **Analyzer Scope Restoration**:
-   Đã gỡ bỏ toàn bộ cấu hình loại trừ `android/**`, `ios/**`, `windows/**` trong `analysis_options.yaml`.
-8. **Visual Verification Status Realism**:
+4. **Legacy Playback Metric & Centralized Match Threshold**:
+   * Đã tạo `LegacyPlaybackCompatibility.distance()` tính khoảng cách theo công thức chuẩn 1:2 aspect ratio:
+     $$\text{dist} = \sqrt{\Delta u^2 + (2 \times \Delta v)^2}$$
+     Đã kiểm tra khoảng cách 2 nút ngang (`TablePoint(0,0)` $\rightarrow$ `TablePoint(0.5,0)`) và 2 nút dọc (`TablePoint(0,0)` $\rightarrow$ `TablePoint(0,0.25)`) có độ dài đại số legacy bằng nhau (= 0.5).
+   * Đã khôi phục và tập trung hóa ngưỡng ghép nối đường chạy / bi `pathMatchTolerance = 0.05` trong `LegacyPlaybackCompatibility`. Dùng helper `isWithinPathMatchTolerance()` đồng nhất ở cả `computeTimings()` và `ScenePainter`.
+   * Đã bổ sung regression test kiểm tra ranh giới 0.04 (thỏa mãn) và 0.075 (không thỏa mãn).
+5. **Ghost & Legacy Type Semantics Fix**:
+   * Sửa cờ `isGhost`: CHỈ dựa vào `ballType == 'ghost'` (không tự động gán `legacyType == 1` làm ghost). `legacyType` là chỉ số kiểu hiển thị bi (0 = full, 1 = half, 2 = numbered).
+   * Thêm test bổ sung với `ballType = 'extra'` và `legacyType = 1` $\rightarrow$ `isGhost = false`, `ballTypeIndex = 1` (bi sọc không-ghost).
+6. **hasBottomRail Hardening**:
+   Tự động suy ra `hasBottomRail = true` từ `viewMode` đã giải thích (`full` hoặc `halfWidth`), ngăn ngừa lệch dữ liệu khi `legacyViewTypeIndex` vượt khoảng bị clamp.
+7. **Physics Wording Cleanup**:
+   Đã làm sạch các đoạn ghi chú trong `LegacyPlaybackCompatibility` thành "Apply the legacy quadratic ease-out used for visual deceleration. This is compatibility playback, not physics."
+8. **Analyzer Scope Restoration**:
+   Đã gỡ bỏ hoàn toàn khối `analyzer.exclude` trong `analysis_options.yaml`, đưa cấu hình analyzer về baseline chuẩn pre-Phase-3.
+9. **Visual Verification Status Realism**:
    Đã tách biệt kết quả tự động `AUTOMATED VERIFICATION = PASS` và kết quả kiểm tra mắt người `HUMAN VISUAL VERIFICATION = PENDING`.
 
 ## Renderer architecture after
@@ -41,7 +44,7 @@ Cấu trúc mô-đun mới trong `lib/rendering/scene/`:
 * `scene_painter.dart`: Facade `CustomPainter` phối hợp các sub-renderers.
 * `scene_renderer.dart`: Facade `StatelessWidget` bọc `CustomPaint` và `ScenePainter`.
 * `legacy/legacy_render_adapter.dart`: Chuyển đổi từ `BilliardScene` hoặc legacy diagram objects.
-* `legacy/legacy_playback_compatibility.dart`: Chứa metric khoảng cách 1:2 aspect ratio và tính toán thời gian cho playback legacy.
+* `legacy/legacy_playback_compatibility.dart`: Chứa metric khoảng cách 1:2 aspect ratio, ngưỡng matching 0.05, và tính toán thời gian cho playback legacy.
 
 ## Files changed
 
@@ -55,7 +58,7 @@ Cấu trúc mô-đun mới trong `lib/rendering/scene/`:
 * `lib/rendering/scene/scene_painter.dart` [MODIFY]
 * `lib/rendering/scene/scene_renderer.dart` [NEW]
 * `lib/rendering/scene/legacy/legacy_render_adapter.dart` [MODIFY]
-* `lib/rendering/scene/legacy/legacy_playback_compatibility.dart` [NEW]
+* `lib/rendering/scene/legacy/legacy_playback_compatibility.dart` [MODIFY]
 * `lib/widgets/billiard_diagram.dart` [MODIFY]
 * `test/scene_viewport_test.dart` [MODIFY]
 * `test/scene_render_model_test.dart` [MODIFY]
@@ -78,14 +81,14 @@ Cấu trúc mô-đun mới trong `lib/rendering/scene/`:
 
 Tất cả unit test & smoke test pass 100%:
 * `test/scene_viewport_test.dart` (Full table non-stretching & 8 view modes round-trip)
-* `test/scene_render_model_test.dart` (Legacy coordinate conversion & 1:2 playback metric)
-* `test/scene_renderer_smoke_test.dart` (Domain ghost & extra ball conversion + widget smoke tests)
+* `test/scene_render_model_test.dart` (Legacy coordinate conversion, 1:2 playback metric & 0.05 tolerance boundary test)
+* `test/scene_renderer_smoke_test.dart` (Domain ghost & extra half-ball conversion + widget smoke tests)
 * `test/architecture_test.dart` (Domain pure Dart guard & rendering DB isolation guard)
 * Full suite regression: PASS.
 
 ## Analyzer
 
-`flutter analyze`: Ran without errors (only legacy info/deprecation notices).
+`flutter analyze`: Ran cleanly or with expected legacy pre-existing infos/warnings only. No exclusions block in `analysis_options.yaml`.
 
 ## Visual manual checklist
 
@@ -116,8 +119,9 @@ Tạo `docs/reports/PHASE_3_MANUAL_VISUAL_CHECKLIST.md` ghi nhận `HUMAN_REQUIR
 - [x] `TablePoint` $\leftrightarrow$ `Canvas` transform non-stretching tests PASS
 - [x] Inverse viewport `offsetToTablePoint` round-trip PASS (8 view modes)
 - [x] Legacy 1:2 playback metric equality test PASS
+- [x] Legacy match tolerance 0.05 restored and centralized PASS
 - [x] Domain ghost ball conversion PASS
-- [x] Domain extra numbered ball conversion PASS
+- [x] Domain extra non-ghost half ball conversion PASS
 - [x] Domain degrees $\rightarrow$ renderer radians test PASS
 - [x] Domain color string $\rightarrow$ Flutter Color test PASS
 - [x] Renderer không access DB
@@ -127,8 +131,8 @@ Tạo `docs/reports/PHASE_3_MANUAL_VISUAL_CHECKLIST.md` ghi nhận `HUMAN_REQUIR
 - [x] Phase 4 editor architecture chưa được implement
 - [x] Phase 5 TeachingSimulation chưa được implement
 - [x] Full regression tests pass
-- [x] [`PHASE_3_MANUAL_VISUAL_CHECKLIST.md`](file:///c:/Lap%20trinh%20Android/Libre2026/Billiardlearning/docs/reports/PHASE_3_MANUAL_VISUAL_CHECKLIST.md) hoàn thành
-- [x] [`PHASE_3_VERIFICATION_REPORT.md`](file:///c:/Lap%20trinh%20Android/Libre2026/Billiardlearning/docs/reports/PHASE_3_VERIFICATION_REPORT.md) hoàn thành
+- [x] [`PHASE_3_MANUAL_VISUAL_CHECKLIST.md`](./PHASE_3_MANUAL_VISUAL_CHECKLIST.md) hoàn thành
+- [x] [`PHASE_3_VERIFICATION_REPORT.md`](./PHASE_3_VERIFICATION_REPORT.md) hoàn thành
 
 ## Recommended phase status
 
@@ -139,4 +143,4 @@ HUMAN VISUAL VERIFICATION = PENDING
 
 ## Git synchronization status
 
-Pending push to origin main.
+Synchronized with origin/main after commit and push.

@@ -21,45 +21,58 @@ void main() {
       expect(offset.dy, equals(viewport.playfieldRect.top));
     });
 
-    test('TablePoint(1,1) maps to full table bottom-right Offset in full mode', () {
-      final viewport = SceneViewport(canvasSize: fullCanvasSize);
-      final Offset offset = viewport.tablePointToOffset(const TablePoint(1, 1));
-
-      expect(offset.dx, closeTo(viewport.playfieldRect.right, 1e-5));
-      expect(offset.dy, closeTo(viewport.playfieldRect.bottom, 1e-5));
-    });
-
-    test('TablePoint(0.5, 0.5) maps to playfield center Offset in full mode', () {
-      final viewport = SceneViewport(canvasSize: fullCanvasSize);
-      final Offset offset = viewport.tablePointToOffset(const TablePoint(0.5, 0.5));
-
-      expect(offset.dx, closeTo(viewport.playfieldRect.center.dx, 1e-5));
-      expect(offset.dy, closeTo(viewport.playfieldRect.center.dy, 1e-5));
-    });
-
-    test('offsetToTablePoint is inverse of tablePointToOffset across all view modes', () {
-      for (final mode in SceneViewMode.values) {
-        final viewport = SceneViewport(
-          canvasSize: fullCanvasSize,
-          viewMode: mode,
+    test(
+      'TablePoint(1,1) maps to full table bottom-right Offset in full mode',
+      () {
+        final viewport = SceneViewport(canvasSize: fullCanvasSize);
+        final Offset offset = viewport.tablePointToOffset(
+          const TablePoint(1, 1),
         );
-        const originalPt = TablePoint(0.25, 0.75);
 
-        final Offset offset = viewport.tablePointToOffset(originalPt);
-        final TablePoint mappedPt = viewport.offsetToTablePoint(offset);
+        expect(offset.dx, closeTo(viewport.playfieldRect.right, 1e-5));
+        expect(offset.dy, closeTo(viewport.playfieldRect.bottom, 1e-5));
+      },
+    );
 
-        expect(
-          mappedPt.u,
-          closeTo(originalPt.u, 1e-6),
-          reason: 'Failed u round-trip for view mode $mode',
+    test(
+      'TablePoint(0.5, 0.5) maps to playfield center Offset in full mode',
+      () {
+        final viewport = SceneViewport(canvasSize: fullCanvasSize);
+        final Offset offset = viewport.tablePointToOffset(
+          const TablePoint(0.5, 0.5),
         );
-        expect(
-          mappedPt.v,
-          closeTo(originalPt.v, 1e-6),
-          reason: 'Failed v round-trip for view mode $mode',
-        );
-      }
-    });
+
+        expect(offset.dx, closeTo(viewport.playfieldRect.center.dx, 1e-5));
+        expect(offset.dy, closeTo(viewport.playfieldRect.center.dy, 1e-5));
+      },
+    );
+
+    test(
+      'offsetToTablePoint is inverse of tablePointToOffset across all view modes',
+      () {
+        for (final mode in SceneViewMode.values) {
+          final viewport = SceneViewport(
+            canvasSize: fullCanvasSize,
+            viewMode: mode,
+          );
+          const originalPt = TablePoint(0.25, 0.75);
+
+          final Offset offset = viewport.tablePointToOffset(originalPt);
+          final TablePoint mappedPt = viewport.offsetToTablePoint(offset);
+
+          expect(
+            mappedPt.u,
+            closeTo(originalPt.u, 1e-6),
+            reason: 'Failed u round-trip for view mode $mode',
+          );
+          expect(
+            mappedPt.v,
+            closeTo(originalPt.v, 1e-6),
+            reason: 'Failed v round-trip for view mode $mode',
+          );
+        }
+      },
+    );
 
     test('full view mode visible bottom-right is TablePoint(1, 1)', () {
       final viewport = SceneViewport(
@@ -120,43 +133,54 @@ void main() {
       expect(offset.dy, closeTo(viewport.playfieldRect.bottom, 1e-5));
     });
 
-    test('halfWidthHalfLength view mode visible bottom-right is TablePoint(0.5, 0.5)', () {
-      const double rHalf = 200.0 * (12.0 / 62.0);
-      const double pWHalf = 200.0 - rHalf;
-      final viewport = SceneViewport(
-        canvasSize: const Size(200.0, rHalf + 4 * (pWHalf / 2)),
-        viewMode: SceneViewMode.halfWidthHalfLength,
-        hasBottomRail: false,
-      );
-      final offset = viewport.tablePointToOffset(const TablePoint(0.5, 0.5));
-      expect(offset.dx, closeTo(viewport.playfieldRect.right, 1e-5));
-      expect(offset.dy, closeTo(viewport.playfieldRect.bottom, 1e-5));
-    });
+    test(
+      'halfWidthHalfLength view mode visible bottom-right is TablePoint(0.5, 0.5)',
+      () {
+        const double rHalf = 200.0 * (12.0 / 62.0);
+        const double pWHalf = 200.0 - rHalf;
+        final viewport = SceneViewport(
+          canvasSize: const Size(200.0, rHalf + 4 * (pWHalf / 2)),
+          viewMode: SceneViewMode.halfWidthHalfLength,
+          hasBottomRail: false,
+        );
+        final offset = viewport.tablePointToOffset(const TablePoint(0.5, 0.5));
+        expect(offset.dx, closeTo(viewport.playfieldRect.right, 1e-5));
+        expect(offset.dy, closeTo(viewport.playfieldRect.bottom, 1e-5));
+      },
+    );
 
-    test('halfWidthThirdLength view mode visible bottom-right is TablePoint(0.5, 0.375)', () {
-      const double rHalf = 200.0 * (12.0 / 62.0);
-      const double pWHalf = 200.0 - rHalf;
-      final viewport = SceneViewport(
-        canvasSize: const Size(200.0, rHalf + 3 * (pWHalf / 2)),
-        viewMode: SceneViewMode.halfWidthThirdLength,
-        hasBottomRail: false,
-      );
-      final offset = viewport.tablePointToOffset(const TablePoint(0.5, 0.375));
-      expect(offset.dx, closeTo(viewport.playfieldRect.right, 1e-5));
-      expect(offset.dy, closeTo(viewport.playfieldRect.bottom, 1e-5));
-    });
+    test(
+      'halfWidthThirdLength view mode visible bottom-right is TablePoint(0.5, 0.375)',
+      () {
+        const double rHalf = 200.0 * (12.0 / 62.0);
+        const double pWHalf = 200.0 - rHalf;
+        final viewport = SceneViewport(
+          canvasSize: const Size(200.0, rHalf + 3 * (pWHalf / 2)),
+          viewMode: SceneViewMode.halfWidthThirdLength,
+          hasBottomRail: false,
+        );
+        final offset = viewport.tablePointToOffset(
+          const TablePoint(0.5, 0.375),
+        );
+        expect(offset.dx, closeTo(viewport.playfieldRect.right, 1e-5));
+        expect(offset.dy, closeTo(viewport.playfieldRect.bottom, 1e-5));
+      },
+    );
 
-    test('halfWidthQuarterLength view mode visible bottom-right is TablePoint(0.5, 0.25)', () {
-      const double rHalf = 200.0 * (12.0 / 62.0);
-      const double pWHalf = 200.0 - rHalf;
-      final viewport = SceneViewport(
-        canvasSize: const Size(200.0, rHalf + 2 * (pWHalf / 2)),
-        viewMode: SceneViewMode.halfWidthQuarterLength,
-        hasBottomRail: false,
-      );
-      final offset = viewport.tablePointToOffset(const TablePoint(0.5, 0.25));
-      expect(offset.dx, closeTo(viewport.playfieldRect.right, 1e-5));
-      expect(offset.dy, closeTo(viewport.playfieldRect.bottom, 1e-5));
-    });
+    test(
+      'halfWidthQuarterLength view mode visible bottom-right is TablePoint(0.5, 0.25)',
+      () {
+        const double rHalf = 200.0 * (12.0 / 62.0);
+        const double pWHalf = 200.0 - rHalf;
+        final viewport = SceneViewport(
+          canvasSize: const Size(200.0, rHalf + 2 * (pWHalf / 2)),
+          viewMode: SceneViewMode.halfWidthQuarterLength,
+          hasBottomRail: false,
+        );
+        final offset = viewport.tablePointToOffset(const TablePoint(0.5, 0.25));
+        expect(offset.dx, closeTo(viewport.playfieldRect.right, 1e-5));
+        expect(offset.dy, closeTo(viewport.playfieldRect.bottom, 1e-5));
+      },
+    );
   });
 }
