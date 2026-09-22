@@ -6,6 +6,11 @@ class VNextTables {
   const VNextTables._();
 
   static Future<void> createAll(DatabaseExecutor db) async {
+    await createTables(db);
+    await createIndexes(db);
+  }
+
+  static Future<void> createTables(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS vnext_lessons (
         id TEXT PRIMARY KEY,
@@ -98,7 +103,7 @@ class VNextTables {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS vnext_learning_progress (
         id TEXT PRIMARY KEY,
-        entity_id TEXT NOT NULL UNIQUE,
+        entity_id TEXT NOT NULL,
         category TEXT NOT NULL,
         is_completed INTEGER NOT NULL,
         completed_at TEXT
@@ -117,8 +122,10 @@ class VNextTables {
         updated_at TEXT NOT NULL
       )
     ''');
+  }
 
-    // Create indexes for efficient querying and soft delete filtering
+  static Future<void> createIndexes(DatabaseExecutor db) async {
+    // Create indexes for efficient querying, uniqueness and soft delete filtering
     await db.execute(
       'CREATE INDEX IF NOT EXISTS index_vnext_lessons_status_deleted '
       'ON vnext_lessons(status, deleted_at)',
@@ -140,7 +147,7 @@ class VNextTables {
     );
 
     await db.execute(
-      'CREATE INDEX IF NOT EXISTS index_vnext_progress_entity '
+      'CREATE UNIQUE INDEX IF NOT EXISTS index_vnext_progress_entity_unique '
       'ON vnext_learning_progress(entity_id)',
     );
   }

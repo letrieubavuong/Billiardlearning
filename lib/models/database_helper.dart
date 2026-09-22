@@ -10,7 +10,7 @@ import 'note_model.dart';
 import 'system_notes.dart';
 
 class DatabaseHelper {
-  static const _databaseVersion = 3;
+  static const _databaseVersion = 4;
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
 

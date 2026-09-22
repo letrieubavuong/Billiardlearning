@@ -50,5 +50,29 @@ class DatabaseMigrations {
     if (oldVersion < 3) {
       await VNextTables.createAll(db);
     }
+    if (oldVersion < 4) {
+      // Ensure vNext tables exist if migrating from older versions
+      await VNextTables.createTables(db);
+
+      // Deterministic Reconciliation Policy for duplicate progress records:
+      // Keep the most recent entry per entity_id and delete older duplicate rows.
+      await db.execute('''
+        DELETE FROM vnext_learning_progress
+        WHERE id NOT IN (
+          SELECT t1.id
+          FROM vnext_learning_progress t1
+          WHERE t1.id = (
+            SELECT t2.id
+            FROM vnext_learning_progress t2
+            WHERE t2.entity_id = t1.entity_id
+            ORDER BY CASE WHEN t2.completed_at IS NOT NULL THEN 1 ELSE 0 END DESC, t2.completed_at DESC, t2.id DESC
+            LIMIT 1
+          )
+        )
+      ''');
+
+      // Create all indexes including UNIQUE index enforcing single progress entry per entity_id
+      await VNextTables.createIndexes(db);
+    }
   }
 }

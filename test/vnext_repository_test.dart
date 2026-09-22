@@ -63,7 +63,7 @@ void main() {
           'index_vnext_scenes_status_deleted',
           'index_vnext_techniques_group',
           'index_vnext_exercises_scene',
-          'index_vnext_progress_entity',
+          'index_vnext_progress_entity_unique',
         ]),
       );
     });
