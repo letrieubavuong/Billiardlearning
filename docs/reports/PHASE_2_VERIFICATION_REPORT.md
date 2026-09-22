@@ -97,7 +97,7 @@ Báo cáo nghiệm thu hoàn tất các chỉnh sửa nâng cao độ tin cậy 
 - Chạy kiểm tra bộ test suite:
   - `dart format .`: Clean (55 files checked/formatted)
   - `flutter analyze`: **0 Errors** (312 legacy deprecation infos)
-  - `flutter test`: **55/55 Tests PASS** (100% PASS)
+  - `flutter test`: **57/57 Tests PASS** (100% PASS)
 - Các suite test đã verify:
   - `test/value_objects_test.dart`: PASS
   - `test/domain_foundation_test.dart`: PASS
@@ -113,6 +113,8 @@ Báo cáo nghiệm thu hoàn tất các chỉnh sửa nâng cao độ tin cậy 
 - **Malformed Metadata Diagnostics**: Khi gặp dữ liệu metadata bị sai kiểu (ví dụ `"schemaVersion": "bad"`, `"ghosts": [{"rotation": "bad"}]`, `"effet": "bad"`), importer phát cảnh báo chẩn đoán typed `INVALID_FIELD_TYPE` kèm tên field cụ thể, bỏ qua thuộc tính metadata lỗi và tiếp tục nạp các vị trí và đối tượng hợp lệ.
 - **No Silent Wrong-Type Metadata Loss**: Xử lý tường minh các trường hợp key `effet`, `effet.effet`, `pathColors`, `freePathColors` sai type hoặc sai độ dài bằng warning `INVALID_FIELD_TYPE` thay vì silently drop hay silent default.
 - **Rotation Unit Contract**: Khẳng định rõ trong domain documentation rằng `BallPosition.rotation` và `SceneAnnotation.rotation` lưu trữ góc quay trình diễn theo đơn vị **độ (degrees)**. Renderer Phase 3 sẽ thực hiện chuyển đổi degrees $\rightarrow$ radians khi vẽ Canvas.
+- **Fractional Numeric Rejection**: Fractional numeric values (e.g. `1.5`, `2.7`) are no longer silently truncated when integer legacy fields (`schemaVersion`, `system`, `viewType`) are expected. Rejection emits an explicit `INVALID_INTEGER_VALUE` warning and uses safe fallbacks.
+- **Independent `pathColors` & `freePathColors` Validation**: `pathColors` and `freePathColors` maps/lists are validated at top-level independently of `paths` presence, ensuring malformed color structures (e.g., `{"pathColors": "bad"}`) trigger specific `INVALID_FIELD_TYPE` warnings regardless of `paths`.
 - **Full SceneMapper Round-Trip Coverage**: Bổ sung unit test kiểm tra khứ hồi 100% tất cả các thuộc tính mở rộng Phase 2 của `BilliardScene` qua `SceneMapper` (`domainToRow` $\rightarrow$ `rowToDomain`), xác minh đầy đủ: `BallPosition` (`label`, `colorHex`, `rotation`, `legacyType`), `SceneAnnotation` (`colorHex`, `rotation`, `role`, `cushionSide`), `CueInstruction` (`power = 0.0`, `powerIsResolved = false`, `tipOffset`), và `ScenePresentationConfig` (`legacySystemIndex`, `legacyViewTypeIndex`, `labelFontSize`).
 - **Legacy Row Backward Compatibility**: Xác minh hàng dữ liệu cũ (old JSON row từ Phase 1) thiếu các trường mới vẫn giải tuần tự hóa an toàn với `presentationConfig = null`, `powerIsResolved = true`, và các metadata phụ = `null`.
 
@@ -131,7 +133,7 @@ Báo cáo nghiệm thu hoàn tất các chỉnh sửa nâng cao độ tin cậy 
 - [x] `schemaVersion` được phân định rõ với `BilliardScene.version` trong tài liệu
 - [x] `SceneMapper` tương thích khứ hồi 100% với SQLite Schema V4
 - [x] Pure Dart boundary được bảo đảm 100% trong `lib/domain/`
-- [x] Complete test suite pass (55/55 pass) 100%
+- [x] Complete test suite pass (57/57 pass) 100%
 - [x] Trạng thái Phase 2 được duy trì tại `REVIEW`
 
 ---

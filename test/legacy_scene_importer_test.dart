@@ -204,6 +204,72 @@ void main() {
       expect(warningCodes, contains('UNKNOWN_LEGACY_VIEW_TYPE_INDEX'));
     });
 
+    test(
+      'rejects fractional float values for integer fields with warning without truncation',
+      () {
+        final jsonMap = <String, dynamic>{
+          'schemaVersion': 1.5,
+          'system': 2.7,
+          'viewType': 3.2,
+        };
+
+        final result = LegacySceneImporter.importJsonMap(jsonMap);
+
+        expect(result.scene.presentationConfig, isNotNull);
+        // Safe fallbacks used without truncating floats to ints
+        expect(result.scene.presentationConfig!.legacySystemIndex, equals(0));
+        expect(result.scene.presentationConfig!.legacyViewTypeIndex, equals(0));
+
+        expect(result.hasWarnings, isTrue);
+        expect(
+          result.warnings.any(
+            (w) =>
+                w.code == 'INVALID_INTEGER_VALUE' && w.field == 'schemaVersion',
+          ),
+          isTrue,
+        );
+        expect(
+          result.warnings.any(
+            (w) => w.code == 'INVALID_INTEGER_VALUE' && w.field == 'system',
+          ),
+          isTrue,
+        );
+        expect(
+          result.warnings.any(
+            (w) => w.code == 'INVALID_INTEGER_VALUE' && w.field == 'viewType',
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'validates pathColors and freePathColors independently of paths key',
+      () {
+        final jsonMap = <String, dynamic>{
+          'pathColors': 'bad_colors',
+          'freePathColors': 'bad_free_colors',
+        };
+
+        final result = LegacySceneImporter.importJsonMap(jsonMap);
+
+        expect(result.hasWarnings, isTrue);
+        expect(
+          result.warnings.any(
+            (w) => w.code == 'INVALID_FIELD_TYPE' && w.field == 'pathColors',
+          ),
+          isTrue,
+        );
+        expect(
+          result.warnings.any(
+            (w) =>
+                w.code == 'INVALID_FIELD_TYPE' && w.field == 'freePathColors',
+          ),
+          isTrue,
+        );
+      },
+    );
+
     test('handles malformed payload shapes with clear diagnostics', () {
       final jsonMap = <String, dynamic>{
         'white': 'bad_string',
@@ -277,8 +343,25 @@ void main() {
         expect(labelAnno.position, equals(const TablePoint(0.25, 0.25)));
         expect(labelAnno.rotation, isNull);
 
-        final warningCodes = result.warnings.map((w) => w.code).toList();
-        expect(warningCodes, contains('INVALID_FIELD_TYPE'));
+        final expectedFields = [
+          'schemaVersion',
+          'system',
+          'viewType',
+          'labelFontSize',
+          'ghosts[0].rotation',
+          'ghosts[0].type',
+          'labels[0].rotation',
+          'pathColors',
+          'freePathColors',
+          'effet',
+        ];
+        for (final field in expectedFields) {
+          expect(
+            result.warnings.any((w) => w.field == field),
+            isTrue,
+            reason: 'Expected warning for malformed field $field',
+          );
+        }
       },
     );
 

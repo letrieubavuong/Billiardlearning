@@ -44,14 +44,32 @@ class LegacySceneImportResult {
 /// Pure Dart importer converting legacy diagram JSON maps into vNext [BilliardScene] candidates.
 class LegacySceneImporter {
   /// Safe helper extracting integer from dynamic value without throwing CastError.
+  ///
+  /// Rejects fractional floating point values (e.g. 1.5) with warning instead of truncating.
   static int? parseOptionalInt(
     dynamic value,
     String fieldName,
     List<LegacyImportWarning> warnings,
   ) {
     if (value == null) return null;
-    if (value is num) {
+    if (value is int) {
+      return value;
+    }
+    if (value is double &&
+        value.isFinite &&
+        value == value.truncateToDouble()) {
       return value.toInt();
+    }
+    if (value is num) {
+      warnings.add(
+        LegacyImportWarning(
+          code: 'INVALID_INTEGER_VALUE',
+          message:
+              'Expected integer for $fieldName, got fractional number $value',
+          field: fieldName,
+        ),
+      );
+      return null;
     }
     warnings.add(
       LegacyImportWarning(
@@ -405,47 +423,47 @@ class LegacySceneImporter {
       }
     }
 
+    // Top-level independent validation of pathColors & freePathColors
+    Map? validatedPathColors;
+    if (json.containsKey('pathColors')) {
+      final rawPathColors = json['pathColors'];
+      if (rawPathColors is Map) {
+        validatedPathColors = rawPathColors;
+      } else {
+        warnings.add(
+          LegacyImportWarning(
+            code: 'INVALID_FIELD_TYPE',
+            message:
+                'Expected Map for pathColors, got ${rawPathColors.runtimeType}',
+            field: 'pathColors',
+          ),
+        );
+      }
+    }
+
+    List? validatedFreePathColors;
+    if (json.containsKey('freePathColors')) {
+      final rawFreeColors = json['freePathColors'];
+      if (rawFreeColors is List) {
+        validatedFreePathColors = rawFreeColors;
+      } else {
+        warnings.add(
+          LegacyImportWarning(
+            code: 'INVALID_FIELD_TYPE',
+            message:
+                'Expected List for freePathColors, got ${rawFreeColors.runtimeType}',
+            field: 'freePathColors',
+          ),
+        );
+      }
+    }
+
     // 3. Trajectories
     final trajectories = <TrajectoryLine>[];
     if (json.containsKey('paths')) {
       final rawPaths = json['paths'];
       if (rawPaths is Map) {
         final pathsMap = rawPaths;
-
-        // Path colors lookup
-        Map? pathColorsMap;
-        if (json.containsKey('pathColors')) {
-          final rawPathColors = json['pathColors'];
-          if (rawPathColors is Map) {
-            pathColorsMap = rawPathColors;
-          } else {
-            warnings.add(
-              LegacyImportWarning(
-                code: 'INVALID_FIELD_TYPE',
-                message:
-                    'Expected Map for pathColors, got ${rawPathColors.runtimeType}',
-                field: 'pathColors',
-              ),
-            );
-          }
-        }
-
-        List? freePathColorsList;
-        if (json.containsKey('freePathColors')) {
-          final rawFreeColors = json['freePathColors'];
-          if (rawFreeColors is List) {
-            freePathColorsList = rawFreeColors;
-          } else {
-            warnings.add(
-              LegacyImportWarning(
-                code: 'INVALID_FIELD_TYPE',
-                message:
-                    'Expected List for freePathColors, got ${rawFreeColors.runtimeType}',
-                field: 'freePathColors',
-              ),
-            );
-          }
-        }
 
         // Trajectory waypoints parser helper
         List<TablePoint> parsePolyline(List rawPoints, String pathKey) {
@@ -468,7 +486,7 @@ class LegacySceneImporter {
               final finalPts = whitePos != null ? [whitePos, ...pts] : pts;
               final colorHex =
                   parseColorHex(
-                    pathColorsMap?['white'],
+                    validatedPathColors?['white'],
                     'pathColors.white',
                     warnings,
                   ) ??
@@ -501,7 +519,7 @@ class LegacySceneImporter {
               final finalPts = yellowPos != null ? [yellowPos, ...pts] : pts;
               final colorHex =
                   parseColorHex(
-                    pathColorsMap?['yellow'],
+                    validatedPathColors?['yellow'],
                     'pathColors.yellow',
                     warnings,
                   ) ??
@@ -534,7 +552,7 @@ class LegacySceneImporter {
               final finalPts = redPos != null ? [redPos, ...pts] : pts;
               final colorHex =
                   parseColorHex(
-                    pathColorsMap?['red'],
+                    validatedPathColors?['red'],
                     'pathColors.red',
                     warnings,
                   ) ??
@@ -567,11 +585,11 @@ class LegacySceneImporter {
                 final pts = parsePolyline(item, 'free[$i]');
                 if (pts.isNotEmpty) {
                   dynamic freeColorRaw;
-                  if (freePathColorsList != null &&
-                      i < freePathColorsList.length) {
-                    freeColorRaw = freePathColorsList[i];
+                  if (validatedFreePathColors != null &&
+                      i < validatedFreePathColors.length) {
+                    freeColorRaw = validatedFreePathColors[i];
                   } else {
-                    freeColorRaw = pathColorsMap?['free'];
+                    freeColorRaw = validatedPathColors?['free'];
                   }
                   final colorHex =
                       parseColorHex(
