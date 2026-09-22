@@ -121,7 +121,7 @@ The legacy domain revolves around a single monolithic model:
 3. **Embedded JSON:** Scene data embedded inside `NoteBlock.content` raw JSON strings instead of stable entity references.
 4. **Hard Delete & Integer Identity:** Hard deletion by SQLite integer ID breaks progress links and cross-references.
 5. **Mixed Simulation Concepts:** Pseudo-physics animations inside CustomPainter masquerading as physical simulation.
-6. **Pixel-based Coordinates:** Coordinates stored in raw canvas pixel offsets rather than normalized table or physical world units.
+6. **Coordinate Transformations:** Legacy models store positions using Legacy Diamond Coordinates (`Offset(x/4, y/4)` normalized relative to 4 short-rail diamond units), which `billiard_diagram.dart` scales to canvas screen pixels during rendering. The vNext architecture formalizes this into normalized `TablePoint(u,v)` in $[0,1]^2$ for DB persistence and `PhysicsWorld` metric units for physics calculations.
 
 ---
 

@@ -78,15 +78,13 @@ Mapped to **`BilliardScene` Domain Entity**:
 
 ## 4. Coordinate Transformation Path
 
-Legacy code mixes canvas pixel offsets (`x, y` in pixels relative to widget width/height). The vNext architecture enforces a 4-tier strict coordinate pipeline:
-
-$$\text{Legacy Pixel Offset } (x_{pixel}, y_{pixel})$$
-$$\downarrow \text{ (Normalize by canvas dimensions)}$$
+$$\text{LegacyDiamondCoordinate } (x_{diamond}, y_{diamond}) \quad (0..4 \text{ horizontal}, 0..8 \text{ vertical})$$
+$$\downarrow \text{ (Normalize by 4 diamond units per short rail: } u = x/4, v = y/4)$$
 $$\text{TablePoint } (u, v) \in [0,1] \times [0,1] \quad \text{--- PERSISTED IN DATABASE}$$
 $$\downarrow \text{ (Multiply by physical table metrics: } 1.422m \times 2.844m)$$
-$$\text{WorldPoint } (x_m, y_m) \text{ in meters} \quad \text{--- USED BY PHYSICS ENGINE}$$
-$$\downarrow \text{ (Viewport scaling \& pan/zoom transform)}$$
-$$\text{ScreenCoordinate } (x_{screen}, y_{screen}) \quad \text{--- USED BY RENDERER ONLY}$$
+$$\text{PhysicsWorld } (x_m, y_m) \text{ in meters} \quad \text{--- USED BY PHYSICS ENGINE}$$
+$$\downarrow \text{ (Viewport scaling, y-axis orientation \& canvas transform)}$$
+$$\text{ScreenCoordinate } (x_{screen}, y_{screen}) \text{ in pixels} \quad \text{--- USED BY RENDERER ONLY}$$
 
 > **Critical Rule:** Canvas pixels (`ScreenCoordinate`) are NEVER persisted to SQLite. Only normalized `TablePoint(u,v)` values are stored in `vnext_scenes`.
 
@@ -107,14 +105,18 @@ Legacy `ShotDetail` JSON payload (cue ball contact point, force bar, tip spin):
 
 ## 6. Number System Mapping
 
-- **Legacy Architecture:** Hardcoded `DiagramSystem` enum + static `SystemDefaultNotes.getBoSoNotes()` arrays + hardcoded `if (system == 'boSo50')` logic.
-- **Target vNext Architecture:** Fully data-driven `NumberSystem` entity stored in `vnext_number_systems`:
-  - `id`: Stable UUID
-  - `name`: String (e.g., "Hệ thống Bộ Số 50 (Diamond System)")
-  - `variables`: Defined list of inputs/outputs (e.g., `Target = Origin - Cushion3`)
-  - `expression`: Mathematical evaluation formula string
-  - `mappings`: Diamond position numerical mappings along table rails
-  - `exampleSceneIds`: List of reference `BilliardScene` UUIDs illustrating the system
+- **Legacy Architecture:** Conflates visual presets (`DiagramSystem` enum), article notes (`SystemDefaultNotes.getBoSoNotes()`), and hardcoded math logic into a single monolithic implementation.
+- **Target vNext Architecture:** Explicitly separates Number Systems into three distinct tiers:
+  1. **Visual System Overlay / Preset (`TableConfig`):** Visual diamond labels and rail overlays drawn on `BilliardScene`.
+  2. **Teaching Lesson Content (`Lesson` Entity):** Pedagogical article text, images, and diagrams explaining how to play the system.
+  3. **NumberSystem Domain Entity (`vnext_number_systems`):** Data-driven mathematical evaluation entity:
+     - `id`: Stable UUID
+     - `name`: String (e.g., "Hệ thống Bộ Số 50 (Diamond System)")
+     - `variables`: Input/output variable definitions (e.g., `Target = Origin - Cushion3`)
+     - `expression`: Mathematical evaluation formula string
+     - `mappings`: Numerical mappings along rail diamond positions
+     - `conditions`: Correction rules and adjustments (e.g., speed, spin, cue elevation)
+     - `exampleSceneIds`: List of reference `BilliardScene` UUIDs illustrating the system
 
 ---
 
