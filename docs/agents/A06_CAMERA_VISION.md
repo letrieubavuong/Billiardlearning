@@ -9,3 +9,4 @@ Sở hữu pipeline camera:
 - scene reconstruction DTO/adapter
 
 Output cuối phải map về BilliardScene candidate. Manual correction là workflow chính thức.
+Camera không ghi trực tiếp database entity và không tạo loại CameraLesson riêng.
