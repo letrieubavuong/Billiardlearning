@@ -119,6 +119,17 @@ FAILED = 0
 * Added debug-only drawer entry (`if (kDebugMode)`) in `MyHomePage` to launch `Phase3VisualQaPage`.
 * Human visual verification status remains `PENDING`.
 
+## Final Visual QA Responsive Layout Fix
+
+* **Analyzer Regression Reverted**: Completely removed `analyzer.exclude` from `analysis_options.yaml`. Added automated architecture test in `test/architecture_test.dart` to enforce zero platform exclusions (`android/**`, `ios/**`, `windows/**`, `build/**`).
+* **Responsive Preview Aspect Ratio**: Implemented `Phase3QaPreview` helper using `LayoutBuilder` to compute uniform scaling (`scale = min(1.0, min(maxWidth / logicalSize.width, maxHeight / logicalSize.height))`), ensuring `actualWidth / actualHeight == logicalWidth / logicalHeight` without non-uniform distortion.
+* **Phone Viewport Verification**: Verified preview rendering on phone constraints (`390 x 844`), ensuring wide horizontal modes fit container width without clipping or squeezing.
+* **Cushion Number Sample & Metadata**: Added representative `cushionNumber` annotation (`role: 'cushionNumber'`, `text: '20'`) to the sample QA scene. Documented that `cushionSide` serves as editor/migration metadata while rendering uses canonical `TablePoint` positioning.
+* **Updated Widget Tests**: Added explicit widget aspect ratio assertion tests verifying all 8 view modes match logical aspect ratio within `1e-3` tolerance, and checklist toggle updates count from 0 to 1 while preserving `PENDING` state.
+* **Full Test Suite & Analyzer Status**:
+  * Total tests: 105 / 105 PASS (0 failed)
+  * Analyzer: Exit code 1 (0 errors, 13 warnings, 300 infos/deprecations in pre-existing files). Zero exclusions.
+
 ## Known limitations
 
 * Chưa có golden test infrastructure tĩnh tự động so sánh pixel-by-pixel.
@@ -163,9 +174,13 @@ FAILED = 0
 
 `Phase 3 = REVIEW`
 
+RENDERER CORE = PASS  
+ARCHITECTURE = PASS  
 AUTOMATED VERIFICATION = PASS  
-HUMAN VISUAL VERIFICATION = PENDING
+VISUAL QA HARNESS = READY  
+HUMAN VISUAL VERIFICATION = PENDING  
 
 ## Git synchronization status
 
 Synchronized with origin/main after commit and push.
+

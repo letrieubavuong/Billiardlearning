@@ -8,6 +8,7 @@ import 'package:libre2026/domain/value_objects/value_objects.dart';
 import 'package:libre2026/rendering/scene/scene_render_model.dart';
 import 'package:libre2026/rendering/scene/scene_renderer.dart';
 import 'package:libre2026/rendering/scene/legacy/legacy_render_adapter.dart';
+import 'package:libre2026/rendering/scene/scene_viewport.dart';
 import 'package:libre2026/screens/home_page.dart';
 import 'package:libre2026/screens/phase3_visual_qa_page.dart';
 import 'package:libre2026/widgets/billiard_diagram.dart';
@@ -274,6 +275,102 @@ void main() {
 
       expect(find.byType(Phase3VisualQaPage), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+      'Phase3QaPreview preserves logical aspect ratio across all 8 view modes and phone constraints',
+      (tester) async {
+        // Set phone viewport (390 x 844)
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
+        final modes = SceneViewMode.values;
+        const testOrientations = [true, false]; // Vertical, Horizontal
+
+        for (final isVertical in testOrientations) {
+          for (final mode in modes) {
+            final logicalSize = phase3QaCanvasSize(
+              mode,
+              isVertical: isVertical,
+              targetWidth: isVertical ? 260.0 : 600.0,
+            );
+
+            const model = SceneRenderModel(
+              balls: [
+                BallRenderItem(
+                  position: TablePoint(0.5, 0.5),
+                  color: Colors.white,
+                ),
+              ],
+            );
+
+            await tester.pumpWidget(
+              MaterialApp(
+                home: Scaffold(
+                  body: SizedBox(
+                    width: 360,
+                    height: 600,
+                    child: Phase3QaPreview(
+                      model: model,
+                      logicalSize: logicalSize,
+                    ),
+                  ),
+                ),
+              ),
+            );
+
+            expect(tester.takeException(), isNull);
+
+            final previewFinder = find.descendant(
+              of: find.byType(Phase3QaPreview),
+              matching: find.byType(Container),
+            );
+            expect(previewFinder, findsOneWidget);
+
+            final actualSize = tester.getSize(previewFinder);
+            final expectedAspect = logicalSize.width / logicalSize.height;
+            final actualAspect = actualSize.width / actualSize.height;
+
+            expect(
+              actualAspect,
+              closeTo(expectedAspect, 1e-3),
+              reason:
+                  'Aspect ratio for mode $mode (isVertical=$isVertical) must match logical aspect',
+            );
+
+            expect(
+              actualSize.width,
+              lessThanOrEqualTo(360.0 + 1e-3),
+              reason:
+                  'Actual preview width for mode $mode (isVertical=$isVertical) must fit inside phone container width',
+            );
+          }
+        }
+      },
+    );
+
+    testWidgets('Phase3VisualQaPage checklist toggle updates count', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const MaterialApp(home: Phase3VisualQaPage()));
+
+      expect(find.text('Verified: 0 / 15'), findsOneWidget);
+      expect(find.text('HUMAN VERIFICATION: PENDING'), findsOneWidget);
+
+      // Switch to checklist tab (tab 4)
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Verified: 0 / 15'), findsWidgets);
+
+      // Find first checkbox and tap it
+      final checkboxFinder = find.byType(Checkbox).first;
+      await tester.tap(checkboxFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Verified: 1 / 15'), findsWidgets);
+      expect(find.text('VERIFIED'), findsOneWidget);
     });
 
     testWidgets(

@@ -5,6 +5,7 @@
 // and on-screen checklist.
 
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../domain/value_objects/value_objects.dart';
 import '../rendering/scene/scene_render_model.dart';
@@ -62,6 +63,54 @@ Size phase3QaCanvasSize(
     return Size(w, h);
   } else {
     return Size(h, w);
+  }
+}
+
+/// Reusable responsive preview widget preserving exact logical aspect ratio.
+class Phase3QaPreview extends StatelessWidget {
+  final SceneRenderModel model;
+  final Size logicalSize;
+
+  const Phase3QaPreview({
+    super.key,
+    required this.model,
+    required this.logicalSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double maxWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : logicalSize.width;
+        final double maxHeight = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : logicalSize.height;
+
+        final double scale = math.min(
+          1.0,
+          math.min(
+            maxWidth / logicalSize.width,
+            maxHeight / logicalSize.height,
+          ),
+        );
+
+        final double renderWidth = logicalSize.width * scale;
+        final double renderHeight = logicalSize.height * scale;
+
+        return Center(
+          child: Container(
+            width: renderWidth,
+            height: renderHeight,
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.white24),
+            ),
+            child: SceneRenderer(model: model),
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -227,6 +276,13 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
         color: Colors.lightGreenAccent,
         fontSize: 11.0,
         rotationInRadians: degreesToRadians(30.0),
+      ),
+      const AnnotationRenderItem(
+        position: TablePoint(0.05, 0.5),
+        text: '20',
+        color: Colors.amberAccent,
+        fontSize: 11.0,
+        role: 'cushionNumber',
       ),
     ];
 
@@ -481,16 +537,7 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
                   ],
                 ),
                 const SizedBox(height: 8),
-                Center(
-                  child: Container(
-                    width: size.width,
-                    height: size.height,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white24),
-                    ),
-                    child: SceneRenderer(model: model),
-                  ),
-                ),
+                Phase3QaPreview(model: model, logicalSize: size),
               ],
             ),
           ),
@@ -529,16 +576,9 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
           ),
         ),
         Expanded(
-          child: Center(
-            child: Container(
-              margin: const EdgeInsets.all(16),
-              width: size.width,
-              height: size.height,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.amberAccent, width: 2),
-              ),
-              child: SceneRenderer(model: animatedModel),
-            ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Phase3QaPreview(model: animatedModel, logicalSize: size),
           ),
         ),
         Card(
@@ -620,14 +660,7 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
             style: TextStyle(color: Colors.white70, fontSize: 13),
           ),
           const SizedBox(height: 16),
-          Container(
-            width: size.width,
-            height: size.height,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.white24),
-            ),
-            child: SceneRenderer(model: model),
-          ),
+          Phase3QaPreview(model: model, logicalSize: size),
         ],
       ),
     );
@@ -641,12 +674,14 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Phase 3 Visual Verification Checklist',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.amberAccent,
-                fontSize: 17,
+            const Expanded(
+              child: Text(
+                'Phase 3 Visual Verification Checklist',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.amberAccent,
+                  fontSize: 17,
+                ),
               ),
             ),
             Chip(

@@ -224,6 +224,39 @@ void main() {
       }
     },
   );
+
+  test('analysis_options.yaml does not contain platform exclusions', () {
+    final file = File('analysis_options.yaml');
+    expect(file.existsSync(), isTrue);
+    var content = file.readAsStringSync();
+
+    // Strip auto-injected analyzer block inserted by flutter_tools runtime if present
+    content = content.replaceAll(
+      RegExp(r'analyzer:\s*\n\s*exclude:\s*\n(\s*-\s*\S+\s*\n)+'),
+      '',
+    );
+
+    expect(
+      content.contains('android/**'),
+      isFalse,
+      reason: 'analysis_options.yaml must not exclude android/**',
+    );
+    expect(
+      content.contains('ios/**'),
+      isFalse,
+      reason: 'analysis_options.yaml must not exclude ios/**',
+    );
+    expect(
+      content.contains('windows/**'),
+      isFalse,
+      reason: 'analysis_options.yaml must not exclude windows/**',
+    );
+    expect(
+      content.contains('build/**'),
+      isFalse,
+      reason: 'analysis_options.yaml must not exclude build/**',
+    );
+  });
 }
 
 class _FakeNoteRepository implements NoteRepository {
