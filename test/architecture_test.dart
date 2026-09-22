@@ -194,6 +194,36 @@ void main() {
       }
     }
   });
+
+  test(
+    'rendering layer does not import sqflite, repositories or database data sources',
+    () {
+      final renderingDir = Directory('lib/rendering');
+      expect(renderingDir.existsSync(), isTrue);
+
+      final forbiddenImports = [
+        'package:sqflite/',
+        'package:sqflite_common_ffi/',
+        'package:shared_preferences/',
+        'data/database',
+        'data/repositories',
+      ];
+
+      final files = renderingDir.listSync(recursive: true).whereType<File>();
+      for (final file in files) {
+        if (file.path.endsWith('.dart')) {
+          final content = file.readAsStringSync();
+          for (final importStr in forbiddenImports) {
+            expect(
+              content.contains(importStr),
+              isFalse,
+              reason: '${file.path} must not import $importStr',
+            );
+          }
+        }
+      }
+    },
+  );
 }
 
 class _FakeNoteRepository implements NoteRepository {

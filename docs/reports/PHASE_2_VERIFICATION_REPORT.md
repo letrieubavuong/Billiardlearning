@@ -142,8 +142,8 @@ Báo cáo nghiệm thu hoàn tất các chỉnh sửa nâng cao độ tin cậy 
 - **Phase -1:** `DONE`
 - **Phase 0:** `DONE`
 - **Phase 1:** `DONE`
-- **Phase 2:** `REVIEW` (Ready for external review)
-- **Phase 3:** `NOT_STARTED`
+- **Phase 2:** `DONE` (External review = PASS, reviewed commit `0bd161a368f313b5b29a222cdd88ffbd2266c88c`)
+- **Phase 3:** `IN_PROGRESS`
 
 ---
 
