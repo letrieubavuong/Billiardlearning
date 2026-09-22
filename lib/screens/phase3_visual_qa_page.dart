@@ -132,25 +132,44 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
   late TabController _tabController;
 
   final Map<String, bool> _checklistState = {
-    'Full table đúng tỷ lệ': false,
-    'Crop modes không bị stretch': false,
-    'Vertical đúng': false,
-    'Horizontal đúng': false,
-    'White/yellow/red đúng': false,
-    'Ghost đúng': false,
-    'Numbered ball đúng': false,
-    'Solid path đúng': false,
-    'Dashed path đúng': false,
-    'Label đúng': false,
-    'Rotation đúng': false,
-    'Cushion numbers đúng': false,
-    'DiagramSystem overlay đúng': false,
-    'Animation không regression': false,
-    'Fullscreen không lỗi': false,
+    '1 Full table view': false,
+    '2 Half table view': false,
+    '3 Third table view': false,
+    '4 Quarter table view': false,
+    '5 Half-width modes': false,
+    '6 Vertical orientation': false,
+    '7 Horizontal orientation': false,
+    '8 White/Yellow/Red balls': false,
+    '9 Ghost ball': false,
+    '10 Extra/numbered ball': false,
+    '11 Normal trajectory': false,
+    '12 Dashed trajectory': false,
+    '13 Text labels/annotations': false,
+    '14 Cushion numbers': false,
+    '15 Rotation of balls/labels': false,
+    '16 xohaibang / babangcha overlays': false,
+    '17 Colors / indicator theme': false,
+    '18 Fullscreen integration': false,
+    '19 Legacy animation non-regression': false,
   };
 
   int get _verifiedCount => _checklistState.values.where((v) => v).length;
   int get _totalCount => _checklistState.length;
+
+  String _getSystemName(int index) {
+    switch (index) {
+      case 0:
+        return 'Standard';
+      case 1:
+        return 'Diamond';
+      case 4:
+        return 'Xô hai băng';
+      case 5:
+        return 'Ba băng chạm';
+      default:
+        return 'System $index';
+    }
+  }
 
   @override
   void initState() {
@@ -432,9 +451,21 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
                     ),
                   ),
                   const SizedBox(width: 16),
+                  Chip(
+                    label: Text(
+                      'System: ${_getSystemName(_diagramSystemIndex)}',
+                    ),
+                    backgroundColor: Colors.teal.shade900,
+                    labelStyle: const TextStyle(
+                      color: Colors.amberAccent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   ChoiceChip(
                     label: const Text(
-                      'Standard Grid',
+                      'Standard',
                       style: TextStyle(fontSize: 11),
                     ),
                     selected: _diagramSystemIndex == 0,
@@ -447,13 +478,39 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
                   const SizedBox(width: 4),
                   ChoiceChip(
                     label: const Text(
-                      'Diamond System',
+                      'Diamond',
                       style: TextStyle(fontSize: 11),
                     ),
                     selected: _diagramSystemIndex == 1,
                     onSelected: (selected) {
                       if (selected) {
                         setState(() => _diagramSystemIndex = 1);
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 4),
+                  ChoiceChip(
+                    label: const Text(
+                      'Xô hai băng',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    selected: _diagramSystemIndex == 4,
+                    onSelected: (selected) {
+                      if (selected) {
+                        setState(() => _diagramSystemIndex = 4);
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 4),
+                  ChoiceChip(
+                    label: const Text(
+                      'Ba băng chạm',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    selected: _diagramSystemIndex == 5,
+                    onSelected: (selected) {
+                      if (selected) {
+                        setState(() => _diagramSystemIndex = 5);
                       }
                     },
                   ),

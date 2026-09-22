@@ -142,6 +142,15 @@ FAILED = 0
   * Total tests: 108 / 108 PASS (0 failed)
   * Analyzer: Exit code 1 (0 errors, 13 warnings, 300 infos/deprecations in pre-existing files). Zero exclusions.
 
+## Human Visual QA Coverage Completion
+
+* **DiagramSystem QA Options Exposed**: Added choice chips for `Standard` (0), `Diamond` (1), `Xô hai băng` (4), and `Ba băng chạm` (5) to `Phase3VisualQaPage` status bar.
+* **Visual System Label**: Added explicit `System: <Name>` chip in status bar for clear human verification.
+* **Phone-Friendly Selector**: Placed system choice chips in a horizontal scroll view to prevent overflow on phone portrait viewports.
+* **System Selection Test**: Added automated widget tests verifying user selection of `Xô hai băng` and `Ba băng chạm` updates render model system index without exception.
+* **Checklist Alignment**: Aligned in-app checklist to exact 19 items from `docs/reports/PHASE_3_MANUAL_VISUAL_CHECKLIST.md` (defaulting to 0/19, all false).
+* **Verification Status**: Human visual verification remains `PENDING`.
+
 ## Known limitations
 
 * Chưa có golden test infrastructure tĩnh tự động so sánh pixel-by-pixel.

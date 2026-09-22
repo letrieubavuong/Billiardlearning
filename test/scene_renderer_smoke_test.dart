@@ -245,12 +245,39 @@ void main() {
     });
 
     testWidgets(
-      'Phase3VisualQaPage human checklist defaults to verified count = 0',
+      'Phase3VisualQaPage human checklist defaults to verified count = 0 / 19',
       (tester) async {
         await tester.pumpWidget(const MaterialApp(home: Phase3VisualQaPage()));
 
-        expect(find.text('Verified: 0 / 15'), findsOneWidget);
+        expect(find.text('Verified: 0 / 19'), findsOneWidget);
         expect(find.text('HUMAN VERIFICATION: PENDING'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Phase3VisualQaPage allows selecting Xô hai băng and Ba băng chạm systems',
+      (tester) async {
+        await tester.pumpWidget(const MaterialApp(home: Phase3VisualQaPage()));
+
+        expect(find.text('System: Diamond'), findsOneWidget);
+
+        final xohaibangFinder = find.widgetWithText(ChoiceChip, 'Xô hai băng');
+        expect(xohaibangFinder, findsOneWidget);
+        await tester.ensureVisible(xohaibangFinder);
+        await tester.tap(xohaibangFinder);
+        await tester.pump();
+
+        expect(find.text('System: Xô hai băng'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+
+        final babangchaFinder = find.widgetWithText(ChoiceChip, 'Ba băng chạm');
+        expect(babangchaFinder, findsOneWidget);
+        await tester.ensureVisible(babangchaFinder);
+        await tester.tap(babangchaFinder);
+        await tester.pump();
+
+        expect(find.text('System: Ba băng chạm'), findsOneWidget);
+        expect(tester.takeException(), isNull);
       },
     );
 
@@ -355,21 +382,21 @@ void main() {
     ) async {
       await tester.pumpWidget(const MaterialApp(home: Phase3VisualQaPage()));
 
-      expect(find.text('Verified: 0 / 15'), findsOneWidget);
+      expect(find.text('Verified: 0 / 19'), findsOneWidget);
       expect(find.text('HUMAN VERIFICATION: PENDING'), findsOneWidget);
 
       // Switch to checklist tab (tab 4)
       await tester.tap(find.byIcon(Icons.checklist));
       await tester.pumpAndSettle();
 
-      expect(find.text('Verified: 0 / 15'), findsWidgets);
+      expect(find.text('Verified: 0 / 19'), findsWidgets);
 
       // Find first checkbox and tap it
       final checkboxFinder = find.byType(Checkbox).first;
       await tester.tap(checkboxFinder);
       await tester.pumpAndSettle();
 
-      expect(find.text('Verified: 1 / 15'), findsWidgets);
+      expect(find.text('Verified: 1 / 19'), findsWidgets);
       expect(find.text('VERIFIED'), findsOneWidget);
     });
 
