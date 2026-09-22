@@ -2,7 +2,7 @@
 
 | Phase | Tên | Status | Review note |
 |---:|---|---|---|
-| -1 | Legacy Audit & Specification Reset | REVIEW | Complete legacy audit & specification reset |
+| -1 | Legacy Audit & Specification Reset | DONE | External review PASS; legacy audit, migration map and baseline verified |
 | 0 | Pure Dart Domain Foundation | IN_PROGRESS | Domain entities, value objects & contracts established |
 | 1 | Repository + SQLite Architecture | DONE | Phase 1 repository & SQLite architecture approved & pass |
 | 2 | Scene Model + Coordinate System | NOT_STARTED | |
