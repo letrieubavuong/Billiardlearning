@@ -8,6 +8,7 @@ import 'package:libre2026/domain/value_objects/value_objects.dart';
 import 'package:libre2026/rendering/scene/scene_render_model.dart';
 import 'package:libre2026/rendering/scene/scene_renderer.dart';
 import 'package:libre2026/rendering/scene/legacy/legacy_render_adapter.dart';
+import 'package:libre2026/screens/phase3_visual_qa_page.dart';
 import 'package:libre2026/widgets/billiard_diagram.dart';
 
 void main() {
@@ -233,6 +234,12 @@ void main() {
       );
 
       expect(find.byType(BilliardDiagram), findsOneWidget);
+    });
+
+    testWidgets('Phase3VisualQaPage renders without exception', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: Phase3VisualQaPage()));
+
+      expect(find.byType(Phase3VisualQaPage), findsOneWidget);
     });
   });
 }
