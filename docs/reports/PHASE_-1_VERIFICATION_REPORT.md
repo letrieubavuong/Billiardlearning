@@ -118,7 +118,7 @@ PLANNED LegacySceneImporter (Phase 4 / Phase 7)
         ↓
 BilliardScene (Pure Dart Domain Entity)
         ↓
-SceneMapper (Data Layer Mapper in lib/data/mappers/scene_mapper.dart)
+SceneMapper (Data Layer Mapper in lib/data/mappers/mappers.dart)
         ↓
 SQLite Row Map (vnext_scenes Table)
 ```
@@ -142,6 +142,14 @@ SQLite Row Map (vnext_scenes Table)
 
 ---
 
+## FINAL EXTERNAL REVIEW CORRECTIONS
+- **SceneMapper Path:** Corrected from `lib/data/mappers/scene_mapper.dart` to `lib/data/mappers/mappers.dart` (where `class SceneMapper` actually resides).
+- **`angles` Field in Diagram Payload:** Verified `DiagramBuilderPage._captureCurrentLayout()` does NOT emit `angles` or `customAngles`. Removed `angles` from current persisted JSON map (noted as historical / compatibility possibility only).
+- **`flutter analyze` Wording:** Corrected wording from "executed cleanly" to recording exact baseline: exit code = `1`, errors = `0`, legacy info/deprecation issues = `312` (`BASELINE / PRE-EXISTING LEGACY ANALYZER DEBT`).
+- **Git SHA Synchronization:** Local HEAD and Upstream HEAD verified identical after commit and push.
+
+---
+
 ## Production code changed
 `NONE`
 
@@ -152,8 +160,10 @@ SQLite Row Map (vnext_scenes Table)
   - Exit code: `0`
   - Status: 50 files formatted (0 changed).
 - `flutter analyze`:
-  - Exit code: `1` (due to legacy Flutter deprecation infos)
-  - Issues count: `312 issues found` (0 errors, 312 infos/deprecated warnings in legacy UI widgets).
+  - Exit code: `1`
+  - Errors: `0`
+  - Legacy info/deprecation issues: `312`
+  - Classification: `BASELINE / PRE-EXISTING LEGACY ANALYZER DEBT`
 - `flutter test`:
   - Exit code: `0`
   - Tests passed: `35`
@@ -173,14 +183,15 @@ SQLite Row Map (vnext_scenes Table)
 - [x] `CueInstruction` current production fields accurately documented
 - [x] `cueSpeed`/`forcePercentage`/`cueElevation` NOT described as existing fields in current domain
 - [x] `thickness`/`cueAngle`/`forceImage` gaps marked as `DEFERRED DOMAIN GAP`
-- [x] `SceneMapper` described correctly as Data Layer Mapper
+- [x] `SceneMapper` path corrected to `lib/data/mappers/mappers.dart` and described correctly as Data Layer Mapper
+- [x] `angles` removed from current persisted Diagram JSON key table
 - [x] `PLANNED LegacySceneImporter` boundary clearly documented
-- [x] Production code (`lib/`) untouched
-- [x] `dart format .` executed cleanly
-- [x] `flutter analyze` executed cleanly
-- [x] `flutter test` executed cleanly (35/35 pass)
-- [x] Verification report created in `docs/reports/PHASE_-1_VERIFICATION_REPORT.md`
-- [x] Changes committed and pushed to remote branch
+- [x] Production code (`lib/`) untouched (`NONE`)
+- [x] `dart format .` executed
+- [x] `flutter analyze` executed and baseline recorded (exit code = 1, errors = 0, 312 legacy infos)
+- [x] `flutter test` executed (35/35 pass)
+- [x] Verification report updated in `docs/reports/PHASE_-1_VERIFICATION_REPORT.md`
+- [x] Changes committed and pushed to remote branch (Local HEAD = Upstream HEAD)
 
 ---
 
@@ -194,3 +205,4 @@ SQLite Row Map (vnext_scenes Table)
 - **Phase 0:** `IN_PROGRESS`
 - **Phase 1:** `DONE`
 - **Phase 2:** `NOT_STARTED`
+

@@ -44,7 +44,7 @@ This document classifies every legacy component and file in the codebase into on
 | `lib/screens/welcome_page.dart` | Splash & welcome screen | **KEEP** | UI Screen | Retained as-is. |
 | `lib/data/database/database_migrations.dart` | Central production SQLite migrations | **KEEP** | Core Data Infrastructure | Manages v1->v4+ database upgrades. |
 | `lib/data/database/vnext_tables.dart` | DDL schema for vNext SQLite tables | **KEEP** | Core Data Infrastructure | Defines 8 vNext tables and indexes. |
-| `lib/data/repositories/vnext_repositories.dart` | SQLite repository implementations | **KEEP** | Data Layer | Implements safe UPSERT & soft-delete for vNext entities (`SceneMapper` maps `BilliardScene` ↔ SQLite Row). |
+| `lib/data/repositories/vnext_repositories.dart` | SQLite repository implementations | **KEEP** | Data Layer | Implements safe UPSERT & soft-delete for vNext entities (`SceneMapper` in `lib/data/mappers/mappers.dart` maps `BilliardScene` ↔ SQLite Row). |
 
 ---
 

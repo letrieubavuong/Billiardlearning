@@ -80,7 +80,7 @@ PLANNED LegacySceneImporter (Phase 4 / Phase 7)
         ↓
 BilliardScene (Pure Dart Domain Entity)
         ↓
-SceneMapper (Data Layer Mapper in lib/data/mappers/scene_mapper.dart)
+SceneMapper (Data Layer Mapper in lib/data/mappers/mappers.dart)
         ↓
 SQLite Row Map (vnext_scenes Table)
 ```
@@ -115,7 +115,6 @@ SQLite Row Map (vnext_scenes Table)
 | `white`, `yellow`, `red`, `extraBalls` | `balls` | `List<BallPosition>` | Legacy diamond coordinates `(x,y)` mapped to normalized `TablePoint(u,v)` where $u=x/4, v=y/8$ |
 | `paths.white`, `yellow`, `red`, `free` | `trajectories` | `List<TrajectoryLine>` | Polyline points mapped to `TablePoint(u,v)` sequences |
 | `labels`, `cushionNumbers` | `annotations` | `List<SceneAnnotation>` | Position mapped to `TablePoint(u,v)` + `text` string |
-| `angles` | `annotations` | `List<SceneAnnotation>` | Encoded as `SceneAnnotation` with angle metadata |
 | `ghosts` | `balls` | `List<BallPosition>` | Mapped with `ballType: "ghost"` flag |
 | `system` (`DiagramSystem` index) | `tableConfig` | `TableConfig` | Active system overlay ID stored in configuration |
 | `effet` | `cueInstruction` | `CueInstruction?` | Tip offset $(dx, dy)$, power percentage |
