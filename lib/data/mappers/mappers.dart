@@ -2,6 +2,7 @@
 
 import 'dart:convert';
 import '../../domain/entities/entities.dart';
+import '../../domain/value_objects/value_objects.dart';
 import '../models/sqlite_models.dart';
 
 class LessonMapper {
@@ -9,18 +10,14 @@ class LessonMapper {
 
   static SqliteLessonRow domainToRow(Lesson domain) {
     final sectionsJson = jsonEncode(
-      domain.sections
-          .map(
-            (sec) => {
-              'id': sec.id,
-              'title': sec.title,
-              'order': sec.order,
-              'blocks': sec.blocks
-                  .map((b) => {'id': b.id, 'type': b.type, 'data': b.data})
-                  .toList(),
-            },
-          )
-          .toList(),
+      domain.sections.map((sec) {
+        return {
+          'id': sec.id,
+          'title': sec.title,
+          'order': sec.order,
+          'blocks': sec.blocks.map(_blockToJson).toList(),
+        };
+      }).toList(),
     );
 
     return SqliteLessonRow(
@@ -42,12 +39,7 @@ class LessonMapper {
     final sections = decodedSections.map((secMap) {
       final m = secMap as Map<String, dynamic>;
       final blocksList = (m['blocks'] as List<dynamic>? ?? []).map((bMap) {
-        final bm = bMap as Map<String, dynamic>;
-        return LessonBlock(
-          id: bm['id'] as String,
-          type: bm['type'] as String,
-          data: Map<String, dynamic>.from(bm['data'] as Map? ?? {}),
-        );
+        return _jsonToBlock(Map<String, dynamic>.from(bMap as Map));
       }).toList();
 
       return LessonSection(
@@ -74,21 +66,151 @@ class LessonMapper {
       deletedAt: row.deletedAt != null ? DateTime.parse(row.deletedAt!) : null,
     );
   }
+
+  static Map<String, dynamic> _blockToJson(LessonBlock b) {
+    if (b is TextBlock) {
+      return {
+        'id': b.id,
+        'type': 'text',
+        'data': {'text': b.text},
+      };
+    } else if (b is SceneReferenceBlock) {
+      return {
+        'id': b.id,
+        'type': 'sceneReference',
+        'data': {'sceneId': b.sceneId, 'caption': b.caption},
+      };
+    } else if (b is MediaReferenceBlock) {
+      return {
+        'id': b.id,
+        'type': 'mediaReference',
+        'data': {'mediaAssetId': b.mediaAssetId, 'caption': b.caption},
+      };
+    } else if (b is TechniqueReferenceBlock) {
+      return {
+        'id': b.id,
+        'type': 'techniqueReference',
+        'data': {'techniqueId': b.techniqueId},
+      };
+    } else if (b is NumberSystemReferenceBlock) {
+      return {
+        'id': b.id,
+        'type': 'numberSystemReference',
+        'data': {'numberSystemId': b.numberSystemId},
+      };
+    } else if (b is ExerciseReferenceBlock) {
+      return {
+        'id': b.id,
+        'type': 'exerciseReference',
+        'data': {'exerciseId': b.exerciseId},
+      };
+    } else if (b is CustomLessonBlock) {
+      return {'id': b.id, 'type': b.customType, 'data': b.data};
+    }
+    return {'id': b.id, 'type': b.blockType, 'data': {}};
+  }
+
+  static LessonBlock _jsonToBlock(Map<String, dynamic> json) {
+    final id = json['id'] as String;
+    final type = json['type'] as String;
+    final data = Map<String, dynamic>.from(json['data'] as Map? ?? {});
+
+    switch (type) {
+      case 'text':
+        return TextBlock(id: id, text: data['text'] as String? ?? '');
+      case 'sceneReference':
+        return SceneReferenceBlock(
+          id: id,
+          sceneId: data['sceneId'] as String? ?? '',
+          caption: data['caption'] as String? ?? '',
+        );
+      case 'mediaReference':
+        return MediaReferenceBlock(
+          id: id,
+          mediaAssetId: data['mediaAssetId'] as String? ?? '',
+          caption: data['caption'] as String? ?? '',
+        );
+      case 'techniqueReference':
+        return TechniqueReferenceBlock(
+          id: id,
+          techniqueId: data['techniqueId'] as String? ?? '',
+        );
+      case 'numberSystemReference':
+        return NumberSystemReferenceBlock(
+          id: id,
+          numberSystemId: data['numberSystemId'] as String? ?? '',
+        );
+      case 'exerciseReference':
+        return ExerciseReferenceBlock(
+          id: id,
+          exerciseId: data['exerciseId'] as String? ?? '',
+        );
+      default:
+        return CustomLessonBlock(id: id, customType: type, data: data);
+    }
+  }
 }
 
 class SceneMapper {
   const SceneMapper._();
 
   static SqliteSceneRow domainToRow(BilliardScene domain) {
+    final tableConfigMap = {
+      'type': domain.tableConfig.type,
+      'widthMeters': domain.tableConfig.widthMeters,
+      'lengthMeters': domain.tableConfig.lengthMeters,
+    };
+
+    final ballsList = domain.balls
+        .map(
+          (b) => {
+            'id': b.id,
+            'ballType': b.ballType,
+            'position': {'u': b.position.u, 'v': b.position.v},
+          },
+        )
+        .toList();
+
+    final trajectoriesList = domain.trajectories
+        .map(
+          (t) => {
+            'id': t.id,
+            'colorHex': t.colorHex,
+            'points': t.points.map((p) => {'u': p.u, 'v': p.v}).toList(),
+          },
+        )
+        .toList();
+
+    final annotationsList = domain.annotations
+        .map(
+          (a) => {
+            'id': a.id,
+            'text': a.text,
+            'position': {'u': a.position.u, 'v': a.position.v},
+          },
+        )
+        .toList();
+
+    final cueInstructionMap = domain.cueInstruction != null
+        ? {
+            'power': domain.cueInstruction!.power,
+            'directionRadians': domain.cueInstruction!.direction.radians,
+            'tipOffset': {
+              'x': domain.cueInstruction!.tipOffset.x,
+              'y': domain.cueInstruction!.tipOffset.y,
+            },
+          }
+        : null;
+
     return SqliteSceneRow(
       id: domain.id,
       name: domain.name,
-      tableConfigJson: jsonEncode(domain.tableConfig),
-      ballsJson: jsonEncode(domain.balls),
-      trajectoriesJson: jsonEncode(domain.trajectories),
-      annotationsJson: jsonEncode(domain.annotations),
-      cueInstructionJson: domain.cueInstruction != null
-          ? jsonEncode(domain.cueInstruction)
+      tableConfigJson: jsonEncode(tableConfigMap),
+      ballsJson: jsonEncode(ballsList),
+      trajectoriesJson: jsonEncode(trajectoriesList),
+      annotationsJson: jsonEncode(annotationsList),
+      cueInstructionJson: cueInstructionMap != null
+          ? jsonEncode(cueInstructionMap)
           : null,
       teachingTimelineJson: domain.teachingTimeline != null
           ? jsonEncode(domain.teachingTimeline)
@@ -103,26 +225,88 @@ class SceneMapper {
   }
 
   static BilliardScene rowToDomain(SqliteSceneRow row) {
+    final tcMap = Map<String, dynamic>.from(
+      jsonDecode(row.tableConfigJson) as Map,
+    );
+    final tableConfig = TableConfig(
+      type: tcMap['type'] as String? ?? 'carom_3c',
+      widthMeters: (tcMap['widthMeters'] as num?)?.toDouble() ?? 1.42,
+      lengthMeters: (tcMap['lengthMeters'] as num?)?.toDouble() ?? 2.84,
+    );
+
+    final ballsList = (jsonDecode(row.ballsJson) as List<dynamic>).map((b) {
+      final bm = Map<String, dynamic>.from(b as Map);
+      final pos = Map<String, dynamic>.from(bm['position'] as Map);
+      return BallPosition(
+        id: bm['id'] as String,
+        ballType: bm['ballType'] as String,
+        position: TablePoint(
+          (pos['u'] as num).toDouble(),
+          (pos['v'] as num).toDouble(),
+        ),
+      );
+    }).toList();
+
+    final trajectoriesList = (jsonDecode(row.trajectoriesJson) as List<dynamic>)
+        .map((t) {
+          final tm = Map<String, dynamic>.from(t as Map);
+          final pts = (tm['points'] as List<dynamic>).map((p) {
+            final pm = Map<String, dynamic>.from(p as Map);
+            return TablePoint(
+              (pm['u'] as num).toDouble(),
+              (pm['v'] as num).toDouble(),
+            );
+          }).toList();
+
+          return TrajectoryLine(
+            id: tm['id'] as String,
+            colorHex: tm['colorHex'] as String? ?? '#FFFFFF',
+            points: pts,
+          );
+        })
+        .toList();
+
+    final annotationsList = (jsonDecode(row.annotationsJson) as List<dynamic>)
+        .map((a) {
+          final am = Map<String, dynamic>.from(a as Map);
+          final pos = Map<String, dynamic>.from(am['position'] as Map);
+          return SceneAnnotation(
+            id: am['id'] as String,
+            text: am['text'] as String,
+            position: TablePoint(
+              (pos['u'] as num).toDouble(),
+              (pos['v'] as num).toDouble(),
+            ),
+          );
+        })
+        .toList();
+
+    CueInstruction? cueInstruction;
+    if (row.cueInstructionJson != null) {
+      final cm = Map<String, dynamic>.from(
+        jsonDecode(row.cueInstructionJson!) as Map,
+      );
+      final tip = Map<String, dynamic>.from(cm['tipOffset'] as Map);
+      cueInstruction = CueInstruction(
+        power: (cm['power'] as num).toDouble(),
+        direction: Angle.fromRadians(
+          (cm['directionRadians'] as num).toDouble(),
+        ),
+        tipOffset: Vec2(
+          (tip['x'] as num).toDouble(),
+          (tip['y'] as num).toDouble(),
+        ),
+      );
+    }
+
     return BilliardScene(
       id: row.id,
       name: row.name,
-      tableConfig: Map<String, dynamic>.from(
-        jsonDecode(row.tableConfigJson) as Map? ?? {},
-      ),
-      balls: (jsonDecode(row.ballsJson) as List<dynamic>)
-          .map((e) => Map<String, dynamic>.from(e as Map))
-          .toList(),
-      trajectories: (jsonDecode(row.trajectoriesJson) as List<dynamic>)
-          .map((e) => Map<String, dynamic>.from(e as Map))
-          .toList(),
-      annotations: (jsonDecode(row.annotationsJson) as List<dynamic>)
-          .map((e) => Map<String, dynamic>.from(e as Map))
-          .toList(),
-      cueInstruction: row.cueInstructionJson != null
-          ? Map<String, dynamic>.from(
-              jsonDecode(row.cueInstructionJson!) as Map,
-            )
-          : null,
+      tableConfig: tableConfig,
+      balls: ballsList,
+      trajectories: trajectoriesList,
+      annotations: annotationsList,
+      cueInstruction: cueInstruction,
       teachingTimeline: row.teachingTimelineJson != null
           ? Map<String, dynamic>.from(
               jsonDecode(row.teachingTimelineJson!) as Map,

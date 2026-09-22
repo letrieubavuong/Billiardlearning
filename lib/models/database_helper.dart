@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import '../data/database/database_migrations.dart';
 import '../data/database/vnext_tables.dart';
 import 'note_model.dart';
 import 'system_notes.dart';
@@ -39,30 +40,12 @@ class DatabaseHelper {
   }
 
   Future<void> _createDB(Database db, int version) async {
-    await db.execute('''
-      CREATE TABLE notes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        category TEXT NOT NULL,
-        title TEXT NOT NULL,
-        subtitle TEXT,
-        blocks TEXT NOT NULL,
-        date TEXT NOT NULL,
-        color INTEGER NOT NULL
-      )
-    ''');
-    await _createMetadataTable(db);
-    await _createIndexes(db);
-    await VNextTables.createAll(db);
+    await DatabaseMigrations.createV1(db);
+    await DatabaseMigrations.migrate(db, 1, version);
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      await _createMetadataTable(db);
-      await _createIndexes(db);
-    }
-    if (oldVersion < 3) {
-      await VNextTables.createAll(db);
-    }
+    await DatabaseMigrations.migrate(db, oldVersion, newVersion);
   }
 
   Future<void> _createMetadataTable(DatabaseExecutor db) async {

@@ -2,9 +2,9 @@
 
 | Phase | Tên | Status | Review note |
 |---:|---|---|---|
-| -1 | Legacy Audit & Specification Reset | NOT_STARTED | |
-| 0 | Pure Dart Domain Foundation | NOT_STARTED | |
-| 1 | Repository + SQLite Architecture | REVIEW | Ready for review after Phase 1 implementation & tests |
+| -1 | Legacy Audit & Specification Reset | IN_PROGRESS | Audit and specification reset ongoing |
+| 0 | Pure Dart Domain Foundation | IN_PROGRESS | Domain entities, value objects & contracts established |
+| 1 | Repository + SQLite Architecture | REVIEW | Ready for review after Phase 1 review fixes & tests |
 | 2 | Scene Model + Coordinate System | NOT_STARTED | |
 | 3 | Scene Renderer Refactor | NOT_STARTED | |
 | 4 | Scene Editor Migration | NOT_STARTED | |

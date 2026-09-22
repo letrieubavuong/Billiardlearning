@@ -8,7 +8,6 @@ import 'package:libre2026/models/note_model.dart';
 import 'package:libre2026/models/image_block_data.dart';
 import 'package:libre2026/screens/co_ban_page.dart';
 import 'package:libre2026/screens/note_editor_page.dart';
-import 'package:libre2026/models/learning_progress.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

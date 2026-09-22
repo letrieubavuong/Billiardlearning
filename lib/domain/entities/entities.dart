@@ -1,5 +1,7 @@
 // Pure Dart Domain Entities for Billiardlearning vNext Architecture
 
+import '../value_objects/value_objects.dart';
+
 enum SceneSource { manual, camera, importSource, generated }
 
 enum SceneStatus { active, archived, deleted }
@@ -8,14 +10,76 @@ enum LessonStatus { draft, ready, published, archived, deleted }
 
 enum MediaType { image, video, audio }
 
+// --- SCENE SKELETON TYPED CLASSES ---
+
+class TableConfig {
+  final String type;
+  final double widthMeters;
+  final double lengthMeters;
+
+  const TableConfig({
+    this.type = 'carom_3c',
+    this.widthMeters = 1.42,
+    this.lengthMeters = 2.84,
+  });
+}
+
+class BallPosition {
+  final String id;
+  final String ballType;
+  final TablePoint position;
+
+  const BallPosition({
+    required this.id,
+    required this.ballType,
+    required this.position,
+  });
+}
+
+class TrajectoryLine {
+  final String id;
+  final String colorHex;
+  final List<TablePoint> points;
+
+  const TrajectoryLine({
+    required this.id,
+    this.colorHex = '#FFFFFF',
+    this.points = const [],
+  });
+}
+
+class SceneAnnotation {
+  final String id;
+  final String text;
+  final TablePoint position;
+
+  const SceneAnnotation({
+    required this.id,
+    required this.text,
+    required this.position,
+  });
+}
+
+class CueInstruction {
+  final double power;
+  final Angle direction;
+  final Vec2 tipOffset;
+
+  const CueInstruction({
+    this.power = 0.0,
+    this.direction = const Angle.fromRadians(0.0),
+    this.tipOffset = Vec2.zero,
+  });
+}
+
 class BilliardScene {
   final String id;
   final String name;
-  final Map<String, dynamic> tableConfig;
-  final List<Map<String, dynamic>> balls;
-  final List<Map<String, dynamic>> trajectories;
-  final List<Map<String, dynamic>> annotations;
-  final Map<String, dynamic>? cueInstruction;
+  final TableConfig tableConfig;
+  final List<BallPosition> balls;
+  final List<TrajectoryLine> trajectories;
+  final List<SceneAnnotation> annotations;
+  final CueInstruction? cueInstruction;
   final Map<String, dynamic>? teachingTimeline;
   final SceneSource source;
   final SceneStatus status;
@@ -27,7 +91,7 @@ class BilliardScene {
   const BilliardScene({
     required this.id,
     required this.name,
-    this.tableConfig = const {},
+    this.tableConfig = const TableConfig(),
     this.balls = const [],
     this.trajectories = const [],
     this.annotations = const [],
@@ -46,11 +110,11 @@ class BilliardScene {
   BilliardScene copyWith({
     String? id,
     String? name,
-    Map<String, dynamic>? tableConfig,
-    List<Map<String, dynamic>>? balls,
-    List<Map<String, dynamic>>? trajectories,
-    List<Map<String, dynamic>>? annotations,
-    Map<String, dynamic>? cueInstruction,
+    TableConfig? tableConfig,
+    List<BallPosition>? balls,
+    List<TrajectoryLine>? trajectories,
+    List<SceneAnnotation>? annotations,
+    CueInstruction? cueInstruction,
     Map<String, dynamic>? teachingTimeline,
     SceneSource? source,
     SceneStatus? status,
@@ -78,16 +142,97 @@ class BilliardScene {
   }
 }
 
-class LessonBlock {
+// --- TYPE-SAFE LESSON BLOCK HIERARCHY ---
+
+abstract class LessonBlock {
   final String id;
-  final String type;
+
+  const LessonBlock({required this.id});
+
+  String get blockType;
+}
+
+class TextBlock extends LessonBlock {
+  final String text;
+
+  const TextBlock({required String id, required this.text}) : super(id: id);
+
+  @override
+  String get blockType => 'text';
+}
+
+class SceneReferenceBlock extends LessonBlock {
+  final String sceneId;
+  final String caption;
+
+  const SceneReferenceBlock({
+    required String id,
+    required this.sceneId,
+    this.caption = '',
+  }) : super(id: id);
+
+  @override
+  String get blockType => 'sceneReference';
+}
+
+class MediaReferenceBlock extends LessonBlock {
+  final String mediaAssetId;
+  final String caption;
+
+  const MediaReferenceBlock({
+    required String id,
+    required this.mediaAssetId,
+    this.caption = '',
+  }) : super(id: id);
+
+  @override
+  String get blockType => 'mediaReference';
+}
+
+class TechniqueReferenceBlock extends LessonBlock {
+  final String techniqueId;
+
+  const TechniqueReferenceBlock({required String id, required this.techniqueId})
+    : super(id: id);
+
+  @override
+  String get blockType => 'techniqueReference';
+}
+
+class NumberSystemReferenceBlock extends LessonBlock {
+  final String numberSystemId;
+
+  const NumberSystemReferenceBlock({
+    required String id,
+    required this.numberSystemId,
+  }) : super(id: id);
+
+  @override
+  String get blockType => 'numberSystemReference';
+}
+
+class ExerciseReferenceBlock extends LessonBlock {
+  final String exerciseId;
+
+  const ExerciseReferenceBlock({required String id, required this.exerciseId})
+    : super(id: id);
+
+  @override
+  String get blockType => 'exerciseReference';
+}
+
+class CustomLessonBlock extends LessonBlock {
+  final String customType;
   final Map<String, dynamic> data;
 
-  const LessonBlock({
-    required this.id,
-    required this.type,
+  const CustomLessonBlock({
+    required String id,
+    required this.customType,
     this.data = const {},
-  });
+  }) : super(id: id);
+
+  @override
+  String get blockType => customType;
 }
 
 class LessonSection {

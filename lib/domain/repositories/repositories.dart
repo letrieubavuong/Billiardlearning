@@ -3,7 +3,7 @@
 import '../entities/entities.dart';
 
 abstract interface class VNextLessonRepository {
-  Future<Lesson?> getById(String id);
+  Future<Lesson?> getById(String id, {bool includeDeleted = false});
   Future<List<Lesson>> list({bool includeDeleted = false});
   Future<void> save(Lesson lesson);
   Future<void> softDelete(String id);
@@ -12,7 +12,7 @@ abstract interface class VNextLessonRepository {
 }
 
 abstract interface class VNextSceneRepository {
-  Future<BilliardScene?> getById(String id);
+  Future<BilliardScene?> getById(String id, {bool includeDeleted = false});
   Future<List<BilliardScene>> list({bool includeDeleted = false});
   Future<void> save(BilliardScene scene);
   Future<void> softDelete(String id);

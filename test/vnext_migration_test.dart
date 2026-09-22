@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:libre2026/data/database/vnext_tables.dart';
+import 'package:libre2026/data/database/database_migrations.dart';
 import 'package:libre2026/data/repositories/vnext_repositories.dart';
 import 'package:libre2026/domain/entities/entities.dart';
 
@@ -37,26 +37,16 @@ void main() {
   });
 
   test(
-    'Database migration v2 -> v3 preserves legacy notes and creates vNext tables',
+    'Production database migration v2 -> v3 preserves legacy notes and creates vNext tables',
     () async {
       // Step 1: Initialize Database at version 2 with legacy schema & sample data
       var db = await openDatabase(
         dbPath,
         version: 2,
         onCreate: (db, version) async {
+          await DatabaseMigrations.createV1(db);
           await db.execute('''
-            CREATE TABLE notes (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              category TEXT NOT NULL,
-              title TEXT NOT NULL,
-              subtitle TEXT,
-              blocks TEXT NOT NULL,
-              date TEXT NOT NULL,
-              color INTEGER NOT NULL
-            )
-          ''');
-          await db.execute('''
-            CREATE TABLE app_metadata (
+            CREATE TABLE IF NOT EXISTS app_metadata (
               key TEXT PRIMARY KEY,
               value TEXT NOT NULL
             )
@@ -100,14 +90,12 @@ void main() {
       expect(initialNotesCount, 3);
       await db.close();
 
-      // Step 2: Open file and upgrade to version 3
+      // Step 2: Open file and run PRODUCTION migration to version 3
       db = await openDatabase(
         dbPath,
         version: 3,
         onUpgrade: (db, oldVersion, newVersion) async {
-          if (oldVersion < 3) {
-            await VNextTables.createAll(db);
-          }
+          await DatabaseMigrations.migrate(db, oldVersion, newVersion);
         },
       );
 
@@ -152,9 +140,7 @@ void main() {
         dbPath,
         version: 3,
         onUpgrade: (db, oldVersion, newVersion) async {
-          if (oldVersion < 3) {
-            await VNextTables.createAll(db);
-          }
+          await DatabaseMigrations.migrate(db, oldVersion, newVersion);
         },
       );
 

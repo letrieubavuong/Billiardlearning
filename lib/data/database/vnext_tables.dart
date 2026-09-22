@@ -98,7 +98,7 @@ class VNextTables {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS vnext_learning_progress (
         id TEXT PRIMARY KEY,
-        entity_id TEXT NOT NULL,
+        entity_id TEXT NOT NULL UNIQUE,
         category TEXT NOT NULL,
         is_completed INTEGER NOT NULL,
         completed_at TEXT

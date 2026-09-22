@@ -16,12 +16,19 @@ class SqliteLessonRepository implements VNextLessonRepository {
       _customDb ?? await DatabaseHelper.instance.database;
 
   @override
-  Future<Lesson?> getById(String id) async {
+  Future<Lesson?> getById(String id, {bool includeDeleted = false}) async {
     final db = await _db;
+    final String where = includeDeleted
+        ? 'id = ?'
+        : 'id = ? AND deleted_at IS NULL AND status != ?';
+    final List<Object?> whereArgs = includeDeleted
+        ? [id]
+        : [id, LessonStatus.deleted.name];
+
     final maps = await db.query(
       'vnext_lessons',
-      where: 'id = ?',
-      whereArgs: [id],
+      where: where,
+      whereArgs: whereArgs,
       limit: 1,
     );
     if (maps.isEmpty) return null;
@@ -67,11 +74,7 @@ class SqliteLessonRepository implements VNextLessonRepository {
     final now = DateTime.now().toIso8601String();
     await db.update(
       'vnext_lessons',
-      {
-        'status': LessonStatus.deleted.name,
-        'deleted_at': now,
-        'updated_at': now,
-      },
+      {'deleted_at': now, 'updated_at': now},
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -83,11 +86,7 @@ class SqliteLessonRepository implements VNextLessonRepository {
     final now = DateTime.now().toIso8601String();
     await db.update(
       'vnext_lessons',
-      {
-        'status': LessonStatus.draft.name,
-        'deleted_at': null,
-        'updated_at': now,
-      },
+      {'deleted_at': null, 'updated_at': now},
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -109,12 +108,22 @@ class SqliteSceneRepository implements VNextSceneRepository {
       _customDb ?? await DatabaseHelper.instance.database;
 
   @override
-  Future<BilliardScene?> getById(String id) async {
+  Future<BilliardScene?> getById(
+    String id, {
+    bool includeDeleted = false,
+  }) async {
     final db = await _db;
+    final String where = includeDeleted
+        ? 'id = ?'
+        : 'id = ? AND deleted_at IS NULL AND status != ?';
+    final List<Object?> whereArgs = includeDeleted
+        ? [id]
+        : [id, SceneStatus.deleted.name];
+
     final maps = await db.query(
       'vnext_scenes',
-      where: 'id = ?',
-      whereArgs: [id],
+      where: where,
+      whereArgs: whereArgs,
       limit: 1,
     );
     if (maps.isEmpty) return null;
@@ -160,11 +169,7 @@ class SqliteSceneRepository implements VNextSceneRepository {
     final now = DateTime.now().toIso8601String();
     await db.update(
       'vnext_scenes',
-      {
-        'status': SceneStatus.deleted.name,
-        'deleted_at': now,
-        'updated_at': now,
-      },
+      {'deleted_at': now, 'updated_at': now},
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -176,11 +181,7 @@ class SqliteSceneRepository implements VNextSceneRepository {
     final now = DateTime.now().toIso8601String();
     await db.update(
       'vnext_scenes',
-      {
-        'status': SceneStatus.active.name,
-        'deleted_at': null,
-        'updated_at': now,
-      },
+      {'deleted_at': null, 'updated_at': now},
       where: 'id = ?',
       whereArgs: [id],
     );
