@@ -91,33 +91,59 @@ SQLite Row Map (vnext_scenes Table)
   "schemaVersion": 1,
   "system": 1,
   "viewType": 0,
+  "labelFontSize": 14.0,
   "white": [2.0, 6.0],
   "yellow": [1.5, 4.0],
   "red": [3.0, 2.0],
   "paths": {
-    "white": [[2.0, 6.0], [1.0, 0.0]],
+    "white": [[1.0, 4.0], [0.0, 2.0]],
     "yellow": [],
     "red": [],
-    "free": []
+    "free": [[[0.0, 0.0], [4.0, 8.0]]]
   },
-  "freePathColors": [],
-  "labels": [{"x": 2.0, "y": 6.0, "text": "Bi chủ", "color": 4294967295, "rotation": 0.0}],
-  "cushionNumbers": [],
-  "ghosts": [],
-  "extraBalls": [],
+  "pathColors": {
+    "white": 4294967295,
+    "yellow": 4294967040,
+    "red": 4294198070,
+    "free": 4280391411
+  },
+  "freePathColors": [4278190080],
+  "labels": [{"x": 2.0, "y": 6.0, "text": "Bi chủ", "color": 4294967295, "rotation": 0.0, "role": "cueBall"}],
+  "cushionNumbers": [{"x": 0.0, "y": 4.0, "text": "50", "color": 4294967295, "rotation": 0.0, "cushionSide": "left"}],
+  "ghosts": [
+    {
+      "x": 2.0,
+      "y": 4.0,
+      "color": 4294967295,
+      "type": 0,
+      "rotation": 15.0,
+      "number": ""
+    }
+  ],
+  "extraBalls": [
+    {
+      "x": 1.0,
+      "y": 2.0,
+      "color": 4278190335,
+      "number": "7"
+    }
+  ],
   "effet": {"thickness": 0.5, "effet": [0.0, 0.5], "forceImage": "assets/images/Luc 2.png", "cueAngle": 15.0}
 }
 ```
 
 | Real Legacy JSON Key | Mapped `BilliardScene` Property | Domain Type | Mapping Transformation |
 | :--- | :--- | :--- | :--- |
-| `schemaVersion` | `version` | `int` | Retained for schema migration tracking |
-| `white`, `yellow`, `red`, `extraBalls` | `balls` | `List<BallPosition>` | Legacy diamond coordinates `(x,y)` mapped to normalized `TablePoint(u,v)` where $u=x/4, v=y/8$ |
-| `paths.white`, `yellow`, `red`, `free` | `trajectories` | `List<TrajectoryLine>` | Polyline points mapped to `TablePoint(u,v)` sequences |
-| `labels`, `cushionNumbers` | `annotations` | `List<SceneAnnotation>` | Position mapped to `TablePoint(u,v)` + `text` string |
-| `ghosts` | `balls` | `List<BallPosition>` | Mapped with `ballType: "ghost"` flag |
-| `system` (`DiagramSystem` index) | `tableConfig` | `TableConfig` | Active system overlay ID stored in configuration |
-| `effet` | `cueInstruction` | `CueInstruction?` | Tip offset $(dx, dy)$, power percentage |
+| `schemaVersion` | Importer validation | `int` | Version of legacy JSON document/codec format. MUST NOT be conflated with `BilliardScene.version` (which represents entity revision, starting at 1). |
+| `white`, `yellow`, `red` | `balls` | `List<BallPosition>` | Main ball diamond coordinates `(x,y)` mapped to `TablePoint(x/4, y/8)`. Prepended to trajectory lines. |
+| `extraBalls` (Maps) | `balls` | `List<BallPosition>` | Extra balls mapped with `ballType: "extra"`, preserving `colorHex`, `label`. |
+| `ghosts` (Maps) | `balls` | `List<BallPosition>` | Ghost balls mapped with `ballType: "ghost"`, preserving `colorHex`, `label`, `rotation`, `legacyType`. |
+| `paths.white`, `yellow`, `red` | `trajectories` | `List<TrajectoryLine>` | Trajectories with main ball position prepended as start point + waypoints mapped to `TablePoint(x/4, y/8)`. Colors from `pathColors`. |
+| `paths.free`, `freePathColors` | `trajectories` | `List<TrajectoryLine>` | Free trajectories mapped without prepending ball positions. Colors from `freePathColors` or `pathColors.free`. |
+| `labels` (Maps) | `annotations` | `List<SceneAnnotation>` | Labels mapped with `TablePoint(x/4, y/8)`, `colorHex`, `rotation`, `role`. |
+| `cushionNumbers` (Maps) | `annotations` | `List<SceneAnnotation>` | Cushion numbers mapped with `TablePoint(x/4, y/8)`, `colorHex`, `rotation`, `role: "cushionNumber"`, `cushionSide`. |
+| `system`, `viewType`, `labelFontSize` | `presentationConfig` | `ScenePresentationConfig?` | Stored in pure Dart `ScenePresentationConfig` (NOT `teachingTimeline`). |
+| `effet` | `cueInstruction` | `CueInstruction?` | Tip offset $(dx, dy)$ preserved, `power = 0.0, powerIsResolved = false` with `DEFERRED_FIELD_FORCE_IMAGE` warning. |
 
 ---
 

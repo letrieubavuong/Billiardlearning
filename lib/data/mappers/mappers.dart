@@ -159,6 +159,8 @@ class SceneMapper {
       'type': domain.tableConfig.type,
       'widthMeters': domain.tableConfig.widthMeters,
       'lengthMeters': domain.tableConfig.lengthMeters,
+      if (domain.presentationConfig != null)
+        'presentationConfig': domain.presentationConfig!.toJson(),
     };
 
     final ballsList = domain.balls
@@ -167,6 +169,10 @@ class SceneMapper {
             'id': b.id,
             'ballType': b.ballType,
             'position': {'u': b.position.u, 'v': b.position.v},
+            if (b.label != null) 'label': b.label,
+            if (b.colorHex != null) 'colorHex': b.colorHex,
+            if (b.rotation != null) 'rotation': b.rotation,
+            if (b.legacyType != null) 'legacyType': b.legacyType,
           },
         )
         .toList();
@@ -187,6 +193,10 @@ class SceneMapper {
             'id': a.id,
             'text': a.text,
             'position': {'u': a.position.u, 'v': a.position.v},
+            if (a.colorHex != null) 'colorHex': a.colorHex,
+            if (a.rotation != null) 'rotation': a.rotation,
+            if (a.role != null) 'role': a.role,
+            if (a.cushionSide != null) 'cushionSide': a.cushionSide,
           },
         )
         .toList();
@@ -199,6 +209,7 @@ class SceneMapper {
               'x': domain.cueInstruction!.tipOffset.x,
               'y': domain.cueInstruction!.tipOffset.y,
             },
+            'powerIsResolved': domain.cueInstruction!.powerIsResolved,
           }
         : null;
 
@@ -234,6 +245,14 @@ class SceneMapper {
       lengthMeters: (tcMap['lengthMeters'] as num?)?.toDouble() ?? 2.84,
     );
 
+    ScenePresentationConfig? presentationConfig;
+    if (tcMap.containsKey('presentationConfig') &&
+        tcMap['presentationConfig'] is Map) {
+      presentationConfig = ScenePresentationConfig.fromJson(
+        Map<String, dynamic>.from(tcMap['presentationConfig'] as Map),
+      );
+    }
+
     final ballsList = (jsonDecode(row.ballsJson) as List<dynamic>).map((b) {
       final bm = Map<String, dynamic>.from(b as Map);
       final pos = Map<String, dynamic>.from(bm['position'] as Map);
@@ -244,6 +263,10 @@ class SceneMapper {
           (pos['u'] as num).toDouble(),
           (pos['v'] as num).toDouble(),
         ),
+        label: bm['label'] as String?,
+        colorHex: bm['colorHex'] as String?,
+        rotation: (bm['rotation'] as num?)?.toDouble(),
+        legacyType: (bm['legacyType'] as num?)?.toInt(),
       );
     }).toList();
 
@@ -277,6 +300,10 @@ class SceneMapper {
               (pos['u'] as num).toDouble(),
               (pos['v'] as num).toDouble(),
             ),
+            colorHex: am['colorHex'] as String?,
+            rotation: (am['rotation'] as num?)?.toDouble(),
+            role: am['role'] as String?,
+            cushionSide: am['cushionSide'] as String?,
           );
         })
         .toList();
@@ -296,6 +323,7 @@ class SceneMapper {
           (tip['x'] as num).toDouble(),
           (tip['y'] as num).toDouble(),
         ),
+        powerIsResolved: cm['powerIsResolved'] as bool? ?? true,
       );
     }
 
@@ -307,6 +335,7 @@ class SceneMapper {
       trajectories: trajectoriesList,
       annotations: annotationsList,
       cueInstruction: cueInstruction,
+      presentationConfig: presentationConfig,
       teachingTimeline: row.teachingTimelineJson != null
           ? Map<String, dynamic>.from(
               jsonDecode(row.teachingTimelineJson!) as Map,

@@ -28,11 +28,19 @@ class BallPosition {
   final String id;
   final String ballType;
   final TablePoint position;
+  final String? label;
+  final String? colorHex;
+  final double? rotation;
+  final int? legacyType;
 
   const BallPosition({
     required this.id,
     required this.ballType,
     required this.position,
+    this.label,
+    this.colorHex,
+    this.rotation,
+    this.legacyType,
   });
 }
 
@@ -52,11 +60,19 @@ class SceneAnnotation {
   final String id;
   final String text;
   final TablePoint position;
+  final String? colorHex;
+  final double? rotation;
+  final String? role;
+  final String? cushionSide;
 
   const SceneAnnotation({
     required this.id,
     required this.text,
     required this.position,
+    this.colorHex,
+    this.rotation,
+    this.role,
+    this.cushionSide,
   });
 }
 
@@ -68,12 +84,55 @@ class CueInstruction {
   final double power;
   final Angle direction;
   final Vec2 tipOffset;
+  final bool powerIsResolved;
 
   const CueInstruction({
     this.power = 0.0,
     this.direction = const Angle.fromRadians(0.0),
     this.tipOffset = Vec2.zero,
+    this.powerIsResolved = true,
   });
+}
+
+class ScenePresentationConfig {
+  final int legacySystemIndex;
+  final int legacyViewTypeIndex;
+  final double? labelFontSize;
+
+  const ScenePresentationConfig({
+    this.legacySystemIndex = 0,
+    this.legacyViewTypeIndex = 0,
+    this.labelFontSize,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'legacySystemIndex': legacySystemIndex,
+    'legacyViewTypeIndex': legacyViewTypeIndex,
+    if (labelFontSize != null) 'labelFontSize': labelFontSize,
+  };
+
+  factory ScenePresentationConfig.fromJson(Map<String, dynamic> json) {
+    return ScenePresentationConfig(
+      legacySystemIndex: json['legacySystemIndex'] as int? ?? 0,
+      legacyViewTypeIndex: json['legacyViewTypeIndex'] as int? ?? 0,
+      labelFontSize: (json['labelFontSize'] as num?)?.toDouble(),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ScenePresentationConfig &&
+          runtimeType == other.runtimeType &&
+          legacySystemIndex == other.legacySystemIndex &&
+          legacyViewTypeIndex == other.legacyViewTypeIndex &&
+          labelFontSize == other.labelFontSize;
+
+  @override
+  int get hashCode =>
+      legacySystemIndex.hashCode ^
+      legacyViewTypeIndex.hashCode ^
+      labelFontSize.hashCode;
 }
 
 class BilliardScene {
@@ -84,6 +143,7 @@ class BilliardScene {
   final List<TrajectoryLine> trajectories;
   final List<SceneAnnotation> annotations;
   final CueInstruction? cueInstruction;
+  final ScenePresentationConfig? presentationConfig;
   final Map<String, dynamic>? teachingTimeline;
   final SceneSource source;
   final SceneStatus status;
@@ -100,6 +160,7 @@ class BilliardScene {
     this.trajectories = const [],
     this.annotations = const [],
     this.cueInstruction,
+    this.presentationConfig,
     this.teachingTimeline,
     this.source = SceneSource.manual,
     this.status = SceneStatus.active,
@@ -119,6 +180,7 @@ class BilliardScene {
     List<TrajectoryLine>? trajectories,
     List<SceneAnnotation>? annotations,
     CueInstruction? cueInstruction,
+    ScenePresentationConfig? presentationConfig,
     Map<String, dynamic>? teachingTimeline,
     SceneSource? source,
     SceneStatus? status,
@@ -135,6 +197,7 @@ class BilliardScene {
       trajectories: trajectories ?? this.trajectories,
       annotations: annotations ?? this.annotations,
       cueInstruction: cueInstruction ?? this.cueInstruction,
+      presentationConfig: presentationConfig ?? this.presentationConfig,
       teachingTimeline: teachingTimeline ?? this.teachingTimeline,
       source: source ?? this.source,
       status: status ?? this.status,

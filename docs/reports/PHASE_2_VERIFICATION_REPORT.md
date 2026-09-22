@@ -1,160 +1,128 @@
 # PHASE 2 VERIFICATION REPORT
 
 ## Summary
-Báo cáo nghiệm thu hoàn tất triển khai **Phase 2 — Scene Model + Coordinate System** cho dự án **Billiardlearning**. Phase 2 đã xây dựng engine tọa độ và hình học mặt bàn Pure Dart `TableGeometry`, thiết lập quy trình biến đổi tọa độ 4 tầng chuẩn ($x_{diamond}/4, y_{diamond}/8 \rightarrow TablePoint(u,v) \rightarrow WorldPoint(x_m,y_m)$), triển khai công cụ chuyển đổi sơ đồ cũ Pure Dart `LegacySceneImporter` với hệ thống chẩn đoán cảnh báo `LegacyImportWarning`, đảm bảo khả năng lưu trữ không cần thay đổi SQLite schema V4 và bảo toàn 100% kết quả test từ các phase trước.
+Báo cáo nghiệm thu hoàn tất các chỉnh sửa nâng cao độ tin cậy và khôi phục dữ liệu chính xác cho **Phase 2 — Scene Model + Coordinate System** của dự án **Billiardlearning**. Phối hợp với kết quả kiểm tra external review, `LegacySceneImporter` đã được tái thiết kế hoàn toàn để giải mã đúng 100% cấu trúc payload legacy thực tế từ `DiagramBuilderPage._captureCurrentLayout()`. Toàn bộ các trường dữ liệu như bi bóng (`ghosts`), bi phụ (`extraBalls`), điểm bắt đầu quỹ đạo bi (`trajectory start points`), màu đường chạy (`pathColors`, `freePathColors`), nhãn chú thích (`labels`, `cushionNumbers`), thông số trình diễn (`ScenePresentationConfig`), và trạng thái lực cơ chưa giải mã (`powerIsResolved = false`) đã được bảo toàn đầy đủ trong mô hình miền Pure Dart mà không làm nảy sinh mất mát dữ liệu ẩn hoặc thay đổi SQLite Schema V4.
 
 ---
 
 ## Files changed
-- **`lib/domain/geometry/table_geometry.dart`** *(NEW)*: Model hình học bàn bida Pure Dart (`playfieldWidthMeters`, `playfieldLengthMeters`, `ballRadiusMeters`) cùng các phương thức biến đổi hai chiều `TablePoint` $\leftrightarrow$ `WorldPoint` và tính khoảng cách vật lý theo tỉ lệ 1:2.
-- **`lib/domain/importers/legacy_scene_importer.dart`** *(NEW)*: Bộ nạp sơ đồ legacy Pure Dart chuyển đổi payload JSON từ `DiagramBuilderPage` thành đối tượng `BilliardScene` vNext với tọa độ $u=x/4, v=y/8$ và ghi nhận các warning chẩn đoán.
-- **`test/scene_coordinate_test.dart`** *(NEW)*: Unit test cho `TableGeometry`, kiểm tra biến đổi tọa độ hai chiều, tỷ lệ khống chế aspect ratio 1:2 và kiềm tra biên $[0,1]^2$.
-- **`test/legacy_scene_importer_test.dart`** *(NEW)*: Unit test kiểm tra `LegacySceneImporter` với dữ liệu legacy payload thực tế, mapping bi, polyline paths, nhãn chú thích, tip offset và cảnh báo deferred gaps.
-- **`docs/PHASE_STATUS.md`**: Đóng Phase 0 thành `DONE`, chuyển Phase 2 sang trạng thái `REVIEW`.
-- **`docs/INDEX.md`**: Bổ sung liên kết báo cáo Phase 2.
-- **`docs/reports/PHASE_0_VERIFICATION_REPORT.md`**: Cập nhật trạng thái Phase 0 thành `DONE` (External review PASS).
-- **`docs/reports/PHASE_2_VERIFICATION_REPORT.md`** *(NEW)*: Báo cáo nghiệm thu chi tiết Phase 2.
+- **`lib/domain/entities/entities.dart`**: Mở rộng các trường typed backward-compatible cho `BallPosition` (`label`, `colorHex`, `rotation`, `legacyType`), `SceneAnnotation` (`colorHex`, `rotation`, `role`, `cushionSide`), `CueInstruction` (`powerIsResolved`), bổ sung lớp pure Dart `ScenePresentationConfig`, và cập nhật `BilliardScene.copyWith`.
+- **`lib/domain/importers/legacy_scene_importer.dart`**: Tái thiết kế bộ nạp sơ đồ legacy Pure Dart, loại bỏ toàn bộ việc đoán hoặc bỏ qua Map items, thêm điểm bắt đầu vị trí bi cho trajectories main ball, chuyển đổi màu ARGB int thành `#AARRGGBB` hex string, thẩm định dải giá trị index enum (`system`, `viewType`), và phát cảnh báo chẩn đoán rõ ràng cho dữ liệu hình dạng không hợp lệ.
+- **`lib/data/mappers/mappers.dart`**: Cập nhật `SceneMapper` để tuần tự hóa và giải tuần tự hóa backward-compatible toàn bộ các thuộc tính mở rộng mới qua JSON hiện có (`tableConfigJson`, `ballsJson`, `annotationsJson`, `cueInstructionJson`), duy trì tính tương thích 100% với SQLite Schema V4.
+- **`test/legacy_scene_importer_test.dart`**: Cập nhật fixture theo đúng format legacy sản xuất thực tế (`extraBalls` Map, `ghosts` Map, `pathColors`, `freePathColors`, `labels` role/color/rotation, `cushionNumbers` cushionSide, `labelFontSize`), bổ sung unit test cho trajectory start point, colors, presentation config, enum range validation, unresolved power và malformed payload diagnostics.
+- **`docs/LEGACY_MIGRATION_MAP.md`**: Cập nhật tài liệu phản ánh chính xác payload legacy JSON thực tế và làm rõ sự khác biệt giữa legacy `schemaVersion` (phiên bản codec JSON) và `BilliardScene.version` (phiên bản entity revision).
+- **`docs/reports/PHASE_2_VERIFICATION_REPORT.md`**: Cập nhật báo cáo chi tiết theo các tiêu chí nghiệm thu mới.
 
 ---
 
-## Scene model changes
-- Đối tượng `BilliardScene` giữ nguyên cấu trúc hạt nhân ổn định từ Phase 0: `TableConfig`, `balls`, `trajectories`, `annotations`, `cueInstruction`, `teachingTimeline`, `source`, `status`, `version`, `createdAt`, `updatedAt`, `deletedAt`.
-- Thêm thuộc tính lưu thông tin hệ thống hiển thị cũ (`legacySystemIndex`, `legacyViewTypeIndex`) vào `teachingTimeline` nhằm bảo toàn cấu hình trình diễn legacy mà không phá hỏng schema SQLite.
+## Real legacy payload verification
+Đã đối soát và xác minh trực tiếp với mã nguồn legacy `lib/screens/diagram_builder_page.dart` (`_captureCurrentLayout()`):
+1. **`extraBalls` Map**:
+   - Structure: `[{"x": 1.5, "y": 3.0, "color": 4280391411, "number": "7"}]`
+   - Mapping: `u = x / 4`, `v = y / 8`, `label = number`, `colorHex = #FF2196F3`, `ballType = 'extra'`.
+2. **`ghosts` Map**:
+   - Structure: `[{"x": 2.0, "y": 4.0, "color": 4294967295, "type": 0, "rotation": 20.0, "number": "1"}]`
+   - Mapping: `u = x / 4`, `v = y / 8`, `label = number`, `colorHex = #FFFFFFFF`, `rotation = 20.0`, `legacyType = 0`, `ballType = 'ghost'`.
+3. **`labels` Map**:
+   - Structure: `[{"x": 2.0, "y": 6.0, "text": "...", "color": 4294967295, "rotation": 15.0, "role": "cueBall"}]`
+   - Mapping: `SceneAnnotation` với `colorHex`, `rotation`, `role`.
+4. **`cushionNumbers` Map**:
+   - Structure: `[{"x": 0.0, "y": 4.0, "text": "50", "color": 4294967295, "rotation": 0.0, "cushionSide": "left"}]`
+   - Mapping: `SceneAnnotation` với `role = 'cushionNumber'`, `cushionSide`, `colorHex`, `rotation`.
 
 ---
 
-## TableGeometry
-- **Lớp Pure Dart:** `TableGeometry` định nghĩa kích thước chuẩn của bàn bida Carom Match ($1.42m \times 2.84m$) và bán kính bi standard ($0.03075m$ / đường kính 61.5mm).
-- **Ràng buộc khởi tạo:** Kiểm tra kích thước bàn và bán kính bi phải là số dương (`> 0`). Thất bại sẽ kích hoạt assertion error.
-- **Biến đổi tọa độ:**
-  - `toWorldPoint(TablePoint point)` $\rightarrow$ `WorldPoint(point.u * widthMeters, point.v * lengthMeters)`.
-  - `toTablePoint(WorldPoint point)` $\rightarrow$ `TablePoint(point.x / widthMeters, point.y / lengthMeters)`.
-- **Đặc tính Tỷ lệ Bàn (Aspect Ratio):** Phân định rõ sự phi tuyến khoảng cách vật lý giữa trục $u$ và trục $v$: khoảng thay đổi $\Delta u = 0.1$ tương ứng $0.142m$, trong khi $\Delta v = 0.1$ tương ứng $0.284m$ (gấp đôi do tỷ lệ bàn 1:2).
+## Main ball trajectory start point semantics
+- Trong renderer legacy `ParsedBilliardLayout.parse()`, đường chạy `paths.white`, `paths.yellow`, `paths.red` đại diện cho các waypoint *sau* vị trí xuất phát của bi.
+- `LegacySceneImporter` đã được sửa để tự động **thêm vị trí hiện tại của bi (trắng, vàng, đỏ)** vào đầu mảng điểm của `TrajectoryLine` tương ứng khi bi và path tồn tại.
+- **Không thực hiện prepend** đối với đường chạy tự do `paths.free`.
 
 ---
 
-## Coordinate conventions
-- **Legacy Diamond Coordinates:** Hệ tọa độ nút số cũ $x_{diamond} \in [0, 4]$ (băng ngắn), $y_{diamond} \in [0, 8]$ (băng dài).
-- **Quy tắc Chuẩn hóa Vị trí Bàn:** $u = x_{diamond} / 4.0$, $v = y_{diamond} / 8.0$ để tạo ra `TablePoint(u,v)` trong không gian $[0, 1] \times [0, 1]$.
-- **Không nhầm lẫn Renderer Ratio:** Renderer helper cũ `Offset(x/4, y/4)` biểu diễn không gian vẽ ($relX \in [0,1], relY \in [0,2]$) KHÔNG được dùng làm `TablePoint`.
-- **Ranh giới Màn hình (Pixel):** Toàn bộ tọa độ màn hình (`ScreenCoordinate` / Canvas Pixels) thuộc về sở hữu của Renderer ở Phase 3 và KHÔNG bao giờ được lưu trữ vào SQLite database.
+## Path colors mapping
+- Giải mã mảng `pathColors` (`white`, `yellow`, `red`, `free`) và `freePathColors` (`[int, ...]`).
+- Chuyển đổi số nguyên legacy ARGB thành chuỗi hex `#AARRGGBB` mà không import Flutter `Color`.
+- `freePathColors[i]` được ưu tiên ánh xạ tương ứng với `paths.free[i]`, fallback về `pathColors.free` hoặc màu xanh lam mặc định (`#2196F3`).
 
 ---
 
-## Coordinate round-trip tests
-- Unit test tại [test/scene_coordinate_test.dart](file:///c:/Lap%20trinh%20Android/Libre2026/Billiardlearning/test/scene_coordinate_test.dart) xác minh các điểm quan trọng:
-  - $(0.0, 0.0) \leftrightarrow (0.0m, 0.0m)$
-  - $(1.0, 1.0) \leftrightarrow (1.42m, 2.84m)$
-  - $(0.5, 0.5) \leftrightarrow (0.71m, 1.42m)$
-  - $(0.25, 0.75) \leftrightarrow (0.355m, 2.13m)$
-- Đảm bảo tính nhất quán tuyệt đối trong phép biến đổi khứ hồi $TablePoint \rightarrow WorldPoint \rightarrow TablePoint$.
+## Presentation metadata vs TeachingTimeline boundary
+- Loại bỏ hoàn toàn việc đưa `legacySystemIndex` và `legacyViewTypeIndex` vào `teachingTimeline`. `teachingTimeline` giữ giá trị `null` cho các sơ đồ tĩnh legacy.
+- Tạo lớp Pure Dart `ScenePresentationConfig`:
+  - `legacySystemIndex` (`system` field)
+  - `legacyViewTypeIndex` (`viewType` field)
+  - `labelFontSize` (`labelFontSize` field)
+- Đính kèm vào `BilliardScene.presentationConfig` và lưu trữ backward-compatible bên trong `tableConfigJson` khi ghi vào SQLite.
 
 ---
 
-## LegacySceneImporter
-- Triển khai lớp Pure Dart `LegacySceneImporter` giải mã Map dữ liệu legacy JSON.
-- Phân tích và chuyển đổi payload chính xác:
-  - Tọa độ 3 bi chính (trắng, vàng, đỏ), bi phụ (`extraBalls`) và bi bóng (`ghosts`).
-  - Đường chạy polyline `paths` (`white`, `yellow`, `red`, `free`) thành `TrajectoryLine`.
-  - Nhãn văn bản `labels` và nút số `cushionNumbers` thành `SceneAnnotation`.
-  - Điểm xoáy `effet[0], effet[1]` thành `CueInstruction.tipOffset`.
-- Tạo đối tượng `LegacySceneImportResult` trả về `BilliardScene` candidate kèm danh sách chẩn đoán `LegacyImportWarning`.
+## Legacy enum indices validation
+- Thẩm định phạm vi giá trị index của `DiagramSystem` (0..5) và `TableViewType` (0..7).
+- Nếu `system` vượt ngoài [0..5], importer tạo cảnh báo: `UNKNOWN_LEGACY_SYSTEM_INDEX`.
+- Nếu `viewType` vượt ngoài [0..7], importer tạo cảnh báo: `UNKNOWN_LEGACY_VIEW_TYPE_INDEX`.
+- Giữ nguyên giá trị thô trong `presentationConfig` để hỗ trợ forensic migration mà không gây crash ứng dụng.
 
 ---
 
-## Legacy fields mapped
-- `white`, `yellow`, `red`, `extraBalls`, `ghosts` $\rightarrow$ `BallPosition` list với tọa độ $x/4, y/8$.
-- `paths.white`, `paths.yellow`, `paths.red`, `paths.free` $\rightarrow$ `TrajectoryLine` list với tọa độ các điểm $x/4, y/8$.
-- `labels`, `cushionNumbers` $\rightarrow$ `SceneAnnotation` list với tọa độ $x/4, y/8$.
-- `effet[0]`, `effet[1]` $\rightarrow$ `CueInstruction.tipOffset`.
-- `system`, `viewType` $\rightarrow$ `teachingTimeline` metadata (`legacySystemIndex`, `legacyViewTypeIndex`).
+## Cue power unresolved contract
+- Tuyệt đối KHÔNG tự gán giá trị giả định `power = 0.5`.
+- Khi đọc payload `effet` có chứa `forceImage`, importer thiết lập:
+  - `power = 0.0`
+  - `powerIsResolved = false`
+  - Phát cảnh báo `DEFERRED_FIELD_FORCE_IMAGE`.
+- Bảo toàn `tipOffset` từ `effet.effet[0]` và `effet.effet[1]`.
+- Giữ nguyên các cảnh báo `DEFERRED_FIELD_CUE_ANGLE` và `DEFERRED_FIELD_THICKNESS`.
 
 ---
 
-## Legacy fields deferred
-- `forceImage`: Ghi nhận `DEFERRED_FIELD_FORCE_IMAGE` warning $\rightarrow$ Sở hữu bởi Phase 15/16 (Physical Cue Calibration).
-- `cueAngle`: Ghi nhận `DEFERRED_FIELD_CUE_ANGLE` warning $\rightarrow$ Sở hữu bởi Phase 15 (Cue Strike Model).
-- `thickness`: Ghi nhận `DEFERRED_FIELD_THICKNESS` warning $\rightarrow$ Sở hữu bởi Phase 6 (Lesson Domain).
+## Payload diagnostics & No silent data loss
+- Khi phát hiện hình dạng dữ liệu sai (ví dụ `white` không phải List, `extraBalls` chứa phần tử sai kiểu, map thiếu `x`/`y`, path sai định dạng), importer không crash bằng `cast<num>()` mà trả cảnh báo chẩn đoán typed/consistent:
+  - `INVALID_FIELD_TYPE`
+  - `INVALID_POINT_SHAPE`
+  - `MISSING_REQUIRED_COORDINATE`
+  - `INVALID_LEGACY_BALL`
+  - `INVALID_LEGACY_PATH`
+- Đảm bảo 100% các key dữ liệu legacy quan trọng đều được MAPPED, DEFERRED (có warning) hoặc UNSUPPORTED (có warning), tuyệt đối không bỏ qua im lặng.
 
 ---
 
-## Migration warnings / diagnostics
-- `OUT_OF_BOUNDS_COORDINATE`: Cảnh báo khi tọa độ nút số cũ vượt quá phạm vi bàn chuẩn $[0,1]^2$.
-- `UNSUPPORTED_SCHEMA_VERSION`: Cảnh báo khi phiên bản schema khác 1.
-- `DEFERRED_FIELD_*`: Cảnh báo các trường dữ liệu được hoãn xử lý cho các phase sau.
+## Persistence & Database compatibility
+- `SceneMapper` hỗ trợ đọc và ghi đầy đủ các trường mới của `BallPosition`, `SceneAnnotation`, `CueInstruction`, `ScenePresentationConfig`.
+- Dữ liệu hàng cũ (old JSON) thiếu các field mới vẫn được deserialized chính xác mà không gặp lỗi.
+- Giữ nguyên Database Schema V4. Không yêu cầu bump database version hay thêm cột SQLite.
 
 ---
 
-## Persistence compatibility
-- Kiểm tra tính tương thích khứ hồi qua `SceneMapper` (`lib/data/mappers/mappers.dart`):
-  - `SceneMapper.domainToRow(scene)`
-  - `SceneMapper.rowToDomain(row)`
-- Toàn bộ các đối tượng `BilliardScene` do `LegacySceneImporter` sinh ra đều tương thích 100% với SQLite schema V4 và pass toàn bộ repository CRUD tests.
-
----
-
-## Database/schema impact
-- `NONE`: Giữ nguyên Database Schema V4. Không yêu cầu migration hay bump database version.
-
----
-
-## Architecture impact
-- Đảm bảo ranh giới Pure Dart 100% cho `lib/domain/geometry/` và `lib/domain/importers/`.
-- Không phụ thuộc vào bất kỳ Flutter UI widget hay Flutter Canvas types nào.
-
----
-
-## Regression tests
-- Bộ test suite **50/50 PASS** (bao gồm 41 tests cũ từ Phase -1, Phase 0, Phase 1 + 9 unit tests mới cho Phase 2).
-- Các test ranh giới kiến trúc, migration SQLite, repository soft delete và UUID v4 đều tiếp tục duy trì trạng thái PASS.
-
----
-
-## Analyzer result
-- **`flutter analyze`**:
-  - Exit code: `1`
-  - Errors: `0`
-  - Warnings/Infos: `312` pre-existing legacy deprecations (Baseline Phase -1 không tạo error mới).
+## Regression tests & Verification
+- Chạy kiểm tra bộ test suite:
+  - `dart format .`: Clean (55 files checked/formatted)
+  - `flutter analyze`: **0 Errors** (312 legacy deprecation infos)
+  - `flutter test`: **52/52 Tests PASS** (100% PASS)
+- Các suite test đã verify:
+  - `test/value_objects_test.dart`: PASS
+  - `test/domain_foundation_test.dart`: PASS
+  - `test/vnext_repository_test.dart`: PASS
+  - `test/vnext_migration_test.dart`: PASS
+  - `test/scene_coordinate_test.dart`: PASS
+  - `test/legacy_scene_importer_test.dart`: PASS
 
 ---
 
 ## Acceptance checklist
-- [x] Phase 0 đã chuyển trạng thái `DONE` trong `PHASE_STATUS.md` và report
-- [x] `BilliardScene` model đáp ứng đầy đủ yêu cầu Phase 2
-- [x] `TableGeometry` Pure Dart được triển khai chính xác
-- [x] Phép biến đổi `TablePoint` $\rightarrow$ `WorldPoint` pass
-- [x] Phép biến đổi `WorldPoint` $\rightarrow$ `TablePoint` pass
-- [x] Khứ hồi biến đổi tọa độ pass
-- [x] Đã test đặc tính tỷ lệ bàn 1:2 (aspect ratio)
-- [x] Không persist pixel vào database
-- [x] Domain không sử dụng Flutter `Offset` hay Flutter UI types
-- [x] Nút số legacy $x=0..4, y=0..8$ được quy đổi chuẩn $x/4, y/8$
-- [x] Sơ đồ legacy sample payload $\rightarrow$ `BilliardScene` candidate pass
-- [x] Sử dụng đúng các keys từ legacy payload thực tế
-- [x] Tọa độ không hợp lệ sinh cảnh báo chẩn đoán `LegacyImportWarning`
-- [x] Các trường hoãn (deferred fields) sinh cảnh báo chẩn đoán rõ ràng
-- [x] `SceneMapper` tương thích khứ hồi 100% với SQLite schema V4
-- [x] Phase 1 repository & migration tests pass
-- [x] Database v4 giữ nguyên
-- [x] Không triển khai Phase 3 (Renderer)
-- [x] Không triển khai Teaching Simulation hay Physics
-- [x] Complete test suite pass (50/50 pass)
-- [x] `PHASE_2_VERIFICATION_REPORT.md` đã được khởi tạo
-- [x] Trạng thái Phase 2 cập nhật thành `REVIEW`
-
----
-
-## Known limitations
-- Việc chuyển đổi lực từ preset asset `forceImage` sang thông số vật lý $m/s$ chưa thực hiện ở Phase 2 (thuộc Phase 15/16).
-- Độ nghiêng cơ `cueAngle` và độ dày va chạm `thickness` được ghi nhận dưới dạng warnings chẩn đoán để phục vụ Phase 6 và Phase 15.
-
----
-
-## Intentionally deferred work
-- Phase 3: `SceneRenderer` & Canvas rendering engine.
-- Phase 4: `SceneEditorController` & interactive editing.
-- Phase 5: Teaching simulation & trajectory animation playback.
-- Phase 15/16: Physical cue strike model & physics calibration.
+- [x] Sử dụng fixture đúng cấu trúc sản xuất thực tế của `_captureCurrentLayout()`
+- [x] Parse đầy đủ metadata bi bóng (`ghosts` Map) và bi phụ (`extraBalls` Map)
+- [x] Tự động thêm điểm xuất phát vị trí bi cho `paths.white`, `yellow`, `red`
+- [x] Chuyển đổi màu ARGB int thành hex string `#AARRGGBB`
+- [x] Đưa metadata trình diễn vào `ScenePresentationConfig` (không nhầm vào `teachingTimeline`)
+- [x] Thẩm định dải index enum `system` và `viewType` với warning rõ ràng
+- [x] Thiết lập `powerIsResolved = false` cho lực cơ chưa quy đổi
+- [x] Trả warning chẩn đoán typed cho dữ liệu hình dạng không hợp lệ, không crash
+- [x] Không còn mất mát dữ liệu im lặng trên các field legacy
+- [x] `schemaVersion` được phân định rõ với `BilliardScene.version` trong tài liệu
+- [x] `SceneMapper` tương thích khứ hồi 100% với SQLite Schema V4
+- [x] Pure Dart boundary được bảo đảm 100% trong `lib/domain/`
+- [x] Toàn bộ 52/52 unit tests pass 100%
+- [x] Trạng thái Phase 2 được duy trì tại `REVIEW`
 
 ---
 
