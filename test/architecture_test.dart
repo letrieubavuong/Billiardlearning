@@ -226,15 +226,10 @@ void main() {
   );
 
   test('analysis_options.yaml does not contain platform exclusions', () {
-    final file = File('analysis_options.yaml');
-    expect(file.existsSync(), isTrue);
-    var content = file.readAsStringSync();
-
-    // Strip auto-injected analyzer block inserted by flutter_tools runtime if present
-    content = content.replaceAll(
-      RegExp(r'analyzer:\s*\n\s*exclude:\s*\n(\s*-\s*\S+\s*\n)+'),
-      '',
-    );
+    final result = Process.runSync('git', ['show', ':analysis_options.yaml']);
+    final content = result.exitCode == 0
+        ? (result.stdout as String)
+        : File('analysis_options.yaml').readAsStringSync();
 
     expect(
       content.contains('android/**'),

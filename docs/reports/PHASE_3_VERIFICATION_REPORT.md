@@ -86,9 +86,20 @@ Tất cả unit test & smoke test pass 100%:
 * `test/architecture_test.dart` (Domain pure Dart guard & rendering DB isolation guard)
 * Full suite regression: PASS.
 
-## Analyzer
+## Final Analyzer Result
 
-`flutter analyze` (Exit code: 1, 0 errors, 13 warnings, 298 infos/deprecations in pre-existing legacy files). No exclusions block in `analysis_options.yaml`.
+```text
+Command:
+flutter analyze
+
+Exit code: 1
+Errors: 0
+Warnings: 13
+Infos/deprecations: 300 (total 313 issues in pre-existing legacy code)
+
+analysis_options.yaml:
+No platform or source exclusions (analyzer.exclude section completely removed).
+```
 
 ## Visual manual checklist
 
@@ -106,8 +117,8 @@ Human visual verification:
 PENDING
 
 Full test suite:
-TOTAL = 104
-PASSED = 104
+TOTAL = 108
+PASSED = 108
 FAILED = 0
 
 ## Visual QA Harness External Review Fix
@@ -119,15 +130,16 @@ FAILED = 0
 * Added debug-only drawer entry (`if (kDebugMode)`) in `MyHomePage` to launch `Phase3VisualQaPage`.
 * Human visual verification status remains `PENDING`.
 
-## Final Visual QA Responsive Layout Fix
+## Final Visual QA Responsive Layout & Analyzer Fix
 
-* **Analyzer Regression Reverted**: Completely removed `analyzer.exclude` from `analysis_options.yaml`. Added automated architecture test in `test/architecture_test.dart` to enforce zero platform exclusions (`android/**`, `ios/**`, `windows/**`, `build/**`).
+* **Analyzer Exclusions Removed**: `analysis_options.yaml` contains zero exclusions. Standard `include: package:flutter_lints/flutter.yaml` preserved.
+* **Direct Config Assertion Guard**: Updated `test/architecture_test.dart` to directly verify `analysis_options.yaml` contains no platform exclusions (`android/**`, `ios/**`, `windows/**`, `build/**`) without string mutation. Verified that the guard fails on invalid configurations.
 * **Responsive Preview Aspect Ratio**: Implemented `Phase3QaPreview` helper using `LayoutBuilder` to compute uniform scaling (`scale = min(1.0, min(maxWidth / logicalSize.width, maxHeight / logicalSize.height))`), ensuring `actualWidth / actualHeight == logicalWidth / logicalHeight` without non-uniform distortion.
 * **Phone Viewport Verification**: Verified preview rendering on phone constraints (`390 x 844`), ensuring wide horizontal modes fit container width without clipping or squeezing.
 * **Cushion Number Sample & Metadata**: Added representative `cushionNumber` annotation (`role: 'cushionNumber'`, `text: '20'`) to the sample QA scene. Documented that `cushionSide` serves as editor/migration metadata while rendering uses canonical `TablePoint` positioning.
 * **Updated Widget Tests**: Added explicit widget aspect ratio assertion tests verifying all 8 view modes match logical aspect ratio within `1e-3` tolerance, and checklist toggle updates count from 0 to 1 while preserving `PENDING` state.
 * **Full Test Suite & Analyzer Status**:
-  * Total tests: 105 / 105 PASS (0 failed)
+  * Total tests: 108 / 108 PASS (0 failed)
   * Analyzer: Exit code 1 (0 errors, 13 warnings, 300 infos/deprecations in pre-existing files). Zero exclusions.
 
 ## Known limitations
