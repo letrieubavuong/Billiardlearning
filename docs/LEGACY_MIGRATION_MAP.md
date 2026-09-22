@@ -6,84 +6,124 @@ This document specifies the exact mapping strategy from legacy data structures a
 
 ## 1. `Note` → Target Domain Mapping
 
-Legacy `Note` records stored in the SQLite `notes` table map to distinct vNext Domain entities depending on their category and content inspection:
+Legacy `Note` Dart instances (`lib/models/note_model.dart` with fields `id`, `title`, `subtitle`, `blocks`, `date`, `color`) are stored in the SQLite `notes` table along with a `category` column (`'coban'`, `'boso'`, `'gombi'`, `'general'`).
 
 ```
-                  ┌── Category: 'coban', 'general' ──> Lesson Entity (vnext_lessons)
+                  ┌── SQLite category: 'coban', 'general' ──> PLANNED Lesson Entity (vnext_lessons)
                   │
-Legacy Note ──────┼── Category: 'boso' ──────────────> NumberSystem Entity (vnext_number_systems)
+Legacy Note ──────┼── SQLite category: 'boso' ─────────────> PLANNED NumberSystem Entity (vnext_number_systems)
 (notes table)     │
-                  ├── Category: 'gombi' ─────────────> Technique Entity (vnext_techniques)
+                  ├── SQLite category: 'gombi' ────────────> PLANNED Technique Entity (vnext_techniques)
                   │
-                  └── Custom User Note ─────────────> Personal Note (Lesson in personal chapter)
+                  └── Custom User Note ────────────────────> PLANNED Personal Note (Personal Chapter)
 ```
 
-| Legacy Category | Content Characteristics | vNext Target Entity | Primary Table |
-| :--- | :--- | :--- | :--- |
-| `coban` | Text + diagrams illustrating fundamentals | `Lesson` | `vnext_lessons` |
-| `boso` | Diamond system formulas & numerical diamond positions | `NumberSystem` + `Lesson` | `vnext_number_systems` |
-| `gombi` | Ball control, gathering techniques & cue spin instructions | `Technique` | `vnext_techniques` |
-| `general` | General practice notes & user articles | `Lesson` (Personal Chapter) | `vnext_lessons` |
+| SQLite `notes.category` | Legacy Content Characteristics | Target vNext Entity | Target SQLite Table | Current Implementation Status |
+| :--- | :--- | :--- | :--- | :--- |
+| `coban` | Text + diagrams illustrating fundamentals | `Lesson` | `vnext_lessons` | `vnext_lessons` schema ready (Phase 1) |
+| `boso` | Diamond system formulas & numerical diamond positions | `NumberSystem` + `Lesson` | `vnext_number_systems` | `vnext_number_systems` schema ready (Phase 1) |
+| `gombi` | Ball control, gathering techniques & cue spin instructions | `Technique` | `vnext_techniques` | `vnext_techniques` schema ready (Phase 1) |
+| `general` | General practice notes & user articles | `Lesson` (Personal Chapter) | `vnext_lessons` | `vnext_lessons` schema ready (Phase 1) |
 
 ---
 
-## 2. `NoteBlock` → Typed `LessonBlock` Mapping
+## 2. `NoteBlock` (`BlockType` 0..13) → Typed `LessonBlock` Mapping
 
-Legacy `NoteBlock` instances embedded within `Note.blocks` JSON array map to type-safe `LessonBlock` sealed class variants in Pure Dart:
+Legacy `NoteBlock` instances (`type`: `BlockType`, `content`: `String`) embedded in `Note.blocks` JSON array map to type-safe `LessonBlock` variants.
 
-| Legacy `NoteBlock.type` | Legacy `content` Payload | vNext `LessonBlock` Variant | Target Payload Representation |
-| :--- | :--- | :--- | :--- |
-| `0` (`text`) | Plain markdown or styled text string | `TextBlock` | `text: String` |
-| `1` (`image`) | Local filesystem image path string | `MediaReferenceBlock` | `mediaAssetId: StableId` (references `vnext_media_assets`) |
-| `2` (`diagram`) | Embedded diagram JSON object string | `SceneReferenceBlock` | `sceneId: StableId` (references `vnext_scenes`) |
-| `3` (`video`) | YouTube URL or video link string | `MediaReferenceBlock` | `mediaAssetId: StableId` (type: video URL) |
-| `4` (`shotDetail`) | ShotDetail JSON string (spin, force, elevation) | `CueInstructionBlock` | `cueInstruction: CueInstruction` DTO |
-| `5` (`formula`) | Mathematical system formula text | `FormulaBlock` | `expression: String` |
+```
+0: text           ──> TextBlock (Available in Phase 1 Domain)
+1: item           ──> PLANNED ItemBlock / CustomLessonBlock compatibility
+2: image          ──> MediaReferenceBlock (Available in Phase 1 Domain)
+3: diagram        ──> SceneReferenceBlock (Available in Phase 1 Domain)
+4: shotDetail     ──> PLANNED CueInstructionBlock / CustomLessonBlock compatibility
+5: section        ──> PLANNED SectionBlock / CustomLessonBlock compatibility
+6: subSection     ──> PLANNED SubSectionBlock / CustomLessonBlock compatibility
+7: headingText    ──> PLANNED HeadingBlock / CustomLessonBlock compatibility
+8: dataTable      ──> PLANNED TableBlock / CustomLessonBlock compatibility
+9: iconText       ──> PLANNED IconTextBlock / CustomLessonBlock compatibility
+10: youtube       ──> MediaReferenceBlock (Available in Phase 1 Domain)
+11: effetDiagram  ──> PLANNED EffetBlock / CustomLessonBlock compatibility
+12: formula       ──> PLANNED FormulaBlock / CustomLessonBlock compatibility
+13: animatedText  ──> PLANNED AnimatedTextBlock / CustomLessonBlock compatibility
+```
 
-> **Constraint:** `LessonBlock` MUST NOT store raw inline diagram JSON. All diagram structures are extracted, saved into `vnext_scenes`, and referenced via a stable `sceneId` UUID.
+| Index | `BlockType` Enum | Legacy Payload Description | Target `LessonBlock` Class | Status |
+| :---: | :--- | :--- | :--- | :--- |
+| **0** | `text` | Markdown / plain text string | `TextBlock` | **Available in Phase 1 Domain** |
+| **1** | `item` | Bullet item list text string | PLANNED `ItemBlock` | *PLANNED TARGET (Phase 6)* |
+| **2** | `image` | Local filesystem image path | `MediaReferenceBlock` | **Available in Phase 1 Domain** |
+| **3** | `diagram` | Embedded diagram JSON string | `SceneReferenceBlock` | **Available in Phase 1 Domain** |
+| **4** | `shotDetail` | ShotDetail JSON string | PLANNED `CueInstructionBlock` | *PLANNED TARGET (Phase 6)* |
+| **5** | `section` | Chapter section heading string | PLANNED `SectionBlock` | *PLANNED TARGET (Phase 6)* |
+| **6** | `subSection` | Sub-section heading string | PLANNED `SubSectionBlock` | *PLANNED TARGET (Phase 6)* |
+| **7** | `headingText` | Styled heading text string | PLANNED `HeadingBlock` | *PLANNED TARGET (Phase 6)* |
+| **8** | `dataTable` | Table data JSON string | PLANNED `TableBlock` | *PLANNED TARGET (Phase 6)* |
+| **9** | `iconText` | Icon + text string | PLANNED `IconTextBlock` | *PLANNED TARGET (Phase 6)* |
+| **10** | `youtube` | YouTube video URL string | `MediaReferenceBlock` | **Available in Phase 1 Domain** |
+| **11** | `effetDiagram` | Spin diagram JSON string | PLANNED `EffetBlock` | *PLANNED TARGET (Phase 6)* |
+| **12** | `formula` | Mathematical formula string | PLANNED `FormulaBlock` | *PLANNED TARGET (Phase 6)* |
+| **13** | `animatedText` | Animated text script JSON string | PLANNED `AnimatedTextBlock` | *PLANNED TARGET (Phase 6)* |
+
+> **Constraint:** `LessonBlock` MUST NOT store raw inline diagram JSON. All diagram structures are extracted into `vnext_scenes` and referenced via stable `sceneId` UUIDs.
 
 ---
 
 ## 3. Legacy Diagram JSON → `BilliardScene` Mapping
 
-Legacy diagram JSON representations (produced by `diagram_builder_page.dart`) are mapped to the unified `BilliardScene` entity:
+Legacy diagram JSON documents (produced by `diagram_builder_page.dart` and encoded via `DiagramDocumentCodec`) are mapped to the unified `BilliardScene` entity:
 
 ```json
-// Legacy Diagram JSON Structure
+// Real Legacy Diagram JSON Structure
 {
-  "version": 1,
-  "system": "boSo50",
-  "cueBall": {"x": 120.0, "y": 300.0},
-  "objectBall1": {"x": 200.0, "y": 150.0},
-  "objectBall2": {"x": 250.0, "y": 100.0},
-  "lines": [...],
-  "labels": [...]
+  "schemaVersion": 1,
+  "system": 1,
+  "viewType": 0,
+  "white": [2.0, 6.0],
+  "yellow": [1.5, 4.0],
+  "red": [3.0, 2.0],
+  "paths": {
+    "white": [[2.0, 6.0], [1.0, 0.0]],
+    "yellow": [],
+    "red": [],
+    "free": []
+  },
+  "freePathColors": [],
+  "labels": [{"x": 2.0, "y": 6.0, "text": "Bi chủ", "color": 4294967295, "rotation": 0.0}],
+  "cushionNumbers": [],
+  "ghosts": [],
+  "extraBalls": [],
+  "effet": {"thickness": 0.5, "effet": [0.0, 0.5], "forceImagePath": "assets/images/Luc 2.png", "cueAngle": 15.0}
 }
 ```
 
 Mapped to **`BilliardScene` Domain Entity**:
 
-| Legacy Diagram JSON Property | Mapped `BilliardScene` Property | Domain Type | Mapping Transformation |
+| Real Legacy JSON Key | Mapped `BilliardScene` Property | Domain Type | Mapping Transformation |
 | :--- | :--- | :--- | :--- |
-| `version` | `version` | `int` | Retained for schema migration tracking |
-| `cueBall`, `objectBall1`, `objectBall2` | `balls` | `List<BallPlacement>` | Screen pixels converted to normalized `TablePoint(u,v)` |
-| `lines` / `trajectories` | `trajectories` | `List<Trajectory>` | Polyline points converted to `TablePoint(u,v)` sequences |
-| `labels` / text annotations | `annotations` | `List<Annotation>` | Position mapped to `TablePoint(u,v)` + `text` string |
+| `schemaVersion` | `version` | `int` | Retained for schema migration tracking |
+| `white`, `yellow`, `red`, `extraBalls` | `balls` | `List<BallPlacement>` | Legacy diamond coordinates `(x,y)` mapped to normalized `TablePoint(u,v)` where $u=x/4, v=y/8$ |
+| `paths.white`, `yellow`, `red`, `free` | `trajectories` | `List<Trajectory>` | Polyline points mapped to `TablePoint(u,v)` sequences |
+| `labels`, `cushionNumbers` | `annotations` | `List<Annotation>` | Position mapped to `TablePoint(u,v)` + `text` string |
 | `angles` | `annotations` | `List<Annotation>` | Encoded as `AnnotationType.angle` |
-| `ghostBall` | `balls` | `List<BallPlacement>` | Mapped with `isGhost: true` flag |
-| `system` / rail overlay | `tableConfig` | `TableConfig` | Active system overlay ID stored in configuration |
-| `shotDetail` | `cueInstruction` | `CueInstruction?` | Tip offset $(dx, dy)$, force %, elevation angle |
+| `ghosts` | `balls` | `List<BallPlacement>` | Mapped with `isGhost: true` flag |
+| `system` (`DiagramSystem` index) | `tableConfig` | `TableConfig` | Active system overlay ID stored in configuration |
+| `effet` | `cueInstruction` | `CueInstruction?` | Tip offset $(dx, dy)$, force %, elevation angle |
 
 ---
 
 ## 4. Coordinate Transformation Path
 
-$$\text{LegacyDiamondCoordinate } (x_{diamond}, y_{diamond}) \quad (0..4 \text{ horizontal}, 0..8 \text{ vertical})$$
-$$\downarrow \text{ (Normalize by 4 diamond units per short rail: } u = x/4, v = y/4)$$
+Legacy code uses **Legacy Diamond Coordinates** ($x_{diamond} \approx 0..4$ on short rail, $y_{diamond} \approx 0..8$ on long rail). Renderer helper `Offset(x/4, y/4)` represents a renderer-relative/aspect-preserving ratio (`relativeX 0..1`, `relativeY 0..2`).
+
+The vNext architecture formalizes the 4-tier strict coordinate pipeline:
+
+$$\text{LegacyDiamondCoordinate } (x_{diamond}, y_{diamond}) \quad (0..4 \text{ short rail}, 0..8 \text{ long rail})$$
+$$\downarrow \text{ (Normalize by rail diamond counts: } u = x/4, v = y/8)$$
 $$\text{TablePoint } (u, v) \in [0,1] \times [0,1] \quad \text{--- PERSISTED IN DATABASE}$$
-$$\downarrow \text{ (Multiply by physical table metrics: } 1.422m \times 2.844m)$$
+$$\downarrow \text{ (Multiply by physical table dimensions: } x_m = u \times \text{tableWidthMeters}, y_m = v \times \text{tableLengthMeters})$$
 $$\text{PhysicsWorld } (x_m, y_m) \text{ in meters} \quad \text{--- USED BY PHYSICS ENGINE}$$
-$$\downarrow \text{ (Viewport scaling, y-axis orientation \& canvas transform)}$$
+$$\downarrow \text{ (Viewport scaling, canvas orientation \& pan/zoom transform)}$$
 $$\text{ScreenCoordinate } (x_{screen}, y_{screen}) \text{ in pixels} \quad \text{--- USED BY RENDERER ONLY}$$
 
 > **Critical Rule:** Canvas pixels (`ScreenCoordinate`) are NEVER persisted to SQLite. Only normalized `TablePoint(u,v)` values are stored in `vnext_scenes`.
@@ -92,22 +132,25 @@ $$\text{ScreenCoordinate } (x_{screen}, y_{screen}) \text{ in pixels} \quad \tex
 
 ## 5. `ShotDetail` → `CueInstruction` Mapping
 
-Legacy `ShotDetail` JSON payload (cue ball contact point, force bar, tip spin):
+Legacy `ShotDetail` payload structure (from `lib/widgets/shot_details.dart`):
 
-| Legacy `ShotDetail` Field | `CueInstruction` Domain Field | Domain Unit / Range |
-| :--- | :--- | :--- |
-| `effetX` (range -1.0 to 1.0) | `tipOffset.x` | Normalized offset $[-1.0, 1.0]$ |
-| `effetY` (range -1.0 to 1.0) | `tipOffset.y` | Normalized offset $[-1.0, 1.0]$ |
-| `force` (range 0 to 100) | `cueSpeed` | Expressed as percentage or $m/s$ |
-| `cueAngle` (degrees) | `cueElevation` | Radians / `Angle` Value Object |
+| Legacy Field | Real Data Representation | `CueInstruction` Domain Field | Unit / Target Domain Range |
+| :--- | :--- | :--- | :--- |
+| `thickness` | `double` (fraction of 8 parts, e.g. `4/8`) | Teaching contact metadata | Fraction / ratio $[0.0, 1.0]$ |
+| `effet[0]` | `double` (tip offset X) | `tipOffset.x` | Normalized offset $[-1.0, 1.0]$ |
+| `effet[1]` | `double` (tip offset Y) | `tipOffset.y` | Normalized offset $[-1.0, 1.0]$ |
+| `cueAngle` | `double` (cue elevation in degrees) | `cueElevation` | Radians / `Angle` Value Object |
+| `forceImagePath` | `String?` asset path (e.g. `"assets/images/Luc 2.png"`) | `cueSpeed` / force preset | Legacy force preset image asset |
+
+> **DEFERRED DOMAIN GAP:** Legacy `forceImagePath` represents discrete asset image presets (`"Luc 1.png"` to `"Luc 4.png"`), NOT a physical velocity in $m/s$. `CueInstruction` in Phase 1 domain contains `forcePercentage`. Complete resolution of this gap is deferred to Phase 0 / Phase 15.
 
 ---
 
-## 6. Number System Mapping
+## 6. Number System Tier Distinction & Mapping
 
-- **Legacy Architecture:** Conflates visual presets (`DiagramSystem` enum), article notes (`SystemDefaultNotes.getBoSoNotes()`), and hardcoded math logic into a single monolithic implementation.
+- **Legacy Architecture:** Monolithic code conflating visual overlays, static article texts, and hardcoded formula text.
 - **Target vNext Architecture:** Explicitly separates Number Systems into three distinct tiers:
-  1. **Visual System Overlay / Preset (`TableConfig`):** Visual diamond labels and rail overlays drawn on `BilliardScene`.
+  1. **Visual System Overlay / Preset (`TableConfig`):** Visual diamond labels and rail overlays drawn on `BilliardScene` (`DiagramSystem` index: `standard`, `diamond`, `short3Cushion`, `shortLongShort`, `xohaibang`, `babangcha`).
   2. **Teaching Lesson Content (`Lesson` Entity):** Pedagogical article text, images, and diagrams explaining how to play the system.
   3. **NumberSystem Domain Entity (`vnext_number_systems`):** Data-driven mathematical evaluation entity:
      - `id`: Stable UUID
@@ -120,16 +163,16 @@ Legacy `ShotDetail` JSON payload (cue ball contact point, force bar, tip spin):
 
 ---
 
-## 7. Learning Progress Mapping
+## 7. Learning Progress Mapping & SharedPreferences Keys
 
-- **Legacy Representation:** Composite strings stored in `SharedPreferences` or app metadata under format `"category:intId"` (e.g., `"coban:3"`).
+- **Legacy Persistence:** Saved in `SharedPreferences` under key `completed_learning_notes` storing a string array of items in format `"$category:$id"` (e.g. `"coban:3"`).
 - **Target vNext Representation:** `vnext_learning_progress` SQLite table:
   - `id`: Stable UUID primary key
-  - `entity_id`: Stable UUID of the target `Lesson`, `Technique`, or `NumberSystem` (`UNIQUE`)
+  - `entity_id`: Stable UUID of target `Lesson`, `Technique`, or `NumberSystem` (`UNIQUE`)
   - `category`: Category identifier string
   - `is_completed`: Integer (`1` for completed, `0` for incomplete)
   - `completed_at`: ISO-8601 UTC timestamp string
-- **Migration Strategy:** An automatic one-time migration maps legacy `"category:intId"` pairs to the newly generated stable UUID of the corresponding migrated entity.
+- **PLANNED Progress Migrator:** A planned one-time migration utility reads `completed_learning_notes` from SharedPreferences and inserts corresponding rows into `vnext_learning_progress` matching the migrated entity UUIDs.
 
 ---
 
