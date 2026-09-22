@@ -61,6 +61,10 @@ class SceneAnnotation {
 }
 
 class CueInstruction {
+  /// Normalized instructional cue power in the range [0.0, 1.0].
+  ///
+  /// This is not a physical cue velocity. Conversion to physical
+  /// strike parameters belongs to the Cue Strike / Calibration phases (Phase 15/16).
   final double power;
   final Angle direction;
   final Vec2 tipOffset;

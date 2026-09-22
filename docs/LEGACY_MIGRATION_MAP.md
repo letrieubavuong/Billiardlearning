@@ -147,14 +147,14 @@ Legacy `ShotDetail` JSON payload vs Current `CueInstruction` Production Domain (
 | :--- | :--- | :--- | :--- |
 | `effet[0]` | `double` (tip offset X -1.0 to 1.0) | `tipOffset.x` | **Mapped in Current Domain** |
 | `effet[1]` | `double` (tip offset Y -1.0 to 1.0) | `tipOffset.y` | **Mapped in Current Domain** |
-| `forceImage` | JSON key (e.g. `"assets/images/Luc 2.png"`) | `power: double` (range 0.0 to 1.0) | **DEFERRED DOMAIN GAP:** Numeric power mapping from asset path |
-| `cueAngle` | `double` (cue elevation in degrees) | *None* (No cue elevation field in `CueInstruction`) | **DEFERRED DOMAIN GAP:** Deferred to Phase 0 / Phase 15 |
-| `thickness` | `double` (fraction of 8 parts, e.g. `4/8`) | *None* (No contact thickness field) | **DEFERRED DOMAIN GAP:** Deferred to Phase 0 / Phase 6 |
+| `forceImage` | JSON key (e.g. `"assets/images/Luc 2.png"`) | `power: double` (normalized instructional power 0.0 to 1.0) | **DEFERRED DOMAIN GAP:** Numeric power mapping from asset path |
+| `cueAngle` | `double` (cue elevation in degrees) | *None* (No cue elevation field in `CueInstruction`) | **DEFERRED DOMAIN GAP:** Deferred to Phase 15 |
+| `thickness` | `double` (fraction of 8 parts, e.g. `4/8`) | *None* (No contact thickness field) | **DEFERRED DOMAIN GAP:** Deferred to Phase 6 |
 
-> **JSON Persisted Field vs Flutter Widget Property:**
+> **JSON Persisted Field vs Flutter Widget Property & Power Contract:**
 > - `forceImage`: JSON key stored inside legacy diagram/effet payloads (e.g. `"forceImage": "assets/images/Luc 2.png"`).
 > - `forceImagePath`: Constructor property name in `ImpactIndicator` Flutter widget (`lib/widgets/shot_details.dart`).
-> - **Constraint:** `forceImage` asset presets MUST NOT be converted directly to physical cue speeds ($m/s$) in Phase -1.
+> - `CueInstruction.power`: Represents **normalized instructional power** in range `[0.0, 1.0]` (`0.00` = zero, `0.25` = low, `0.50` = medium, `0.75` = high, `1.00` = normalized max). It is NOT physical cue speed ($m/s$) or percentage `[0, 100]`. Physical calibration belongs to Phase 15/16.
 
 ---
 

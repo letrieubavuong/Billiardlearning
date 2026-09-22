@@ -148,7 +148,7 @@ void main() {
           ),
         ],
         cueInstruction: CueInstruction(
-          power: 75.0,
+          power: 0.75,
           direction: Angle.fromDegrees(45.0),
           tipOffset: const Vec2(0.1, -0.2),
         ),
@@ -167,7 +167,7 @@ void main() {
       expect(restored.balls.length, 1);
       expect(restored.balls.first.position, const TablePoint(0.2, 0.5));
       expect(restored.trajectories.first.colorHex, '#FF0000');
-      expect(restored.cueInstruction!.power, 75.0);
+      expect(restored.cueInstruction!.power, 0.75);
     });
   });
 

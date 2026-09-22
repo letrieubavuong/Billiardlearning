@@ -51,6 +51,12 @@ Báo cáo nghiệm thu hoàn tất các hạng mục của **Phase 0 — Pure Da
   - `NumberSystem`: Đối tượng hệ thống bộ số.
   - `Exercise`, `MediaAsset`, `LearningProgressRecord`, `SimulationProfile`.
 
+## CueInstruction power contract
+- **Normalized Instructional Power:** `CueInstruction.power` đại diện cho giá trị lực hướng dẫn đã chuẩn hóa trong khoảng $[0.0, 1.0]$ (`0.00` = zero, `0.25` = lực nhẹ/low, `0.50` = lực vừa/medium, `0.75` = lực mạnh/high, `1.00` = lực tối đa/max).
+- **Physical Boundary:** `power` KHÔNG đại diện cho vận tốc vật lý ($m/s$), tốc độ ($km/h$) hay phần trăm phô trương $[0, 100]$.
+- **Test Alignment:** Đã đồng bộ mẫu test trong `test/vnext_repository_test.dart` từ `power: 75.0` thành `power: 0.75` để tuân thủ 100% domain contract.
+- **Physical Calibration:** Việc quy đổi từ `power` chuẩn hóa sang vận tốc/xung lực vật lý thuộc phạm vi của Phase 15 (Cue Strike Model) và Phase 16 (Physics Calibration).
+
 ---
 
 ## Repository contracts
