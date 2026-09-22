@@ -9,10 +9,12 @@ import 'ghi_chu_page.dart';
 import 'note_editor_page.dart';
 import 'diagram_builder_page.dart';
 import 'shot_detail_builder_page.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../widgets/youtube_player_widget.dart';
 import '../models/theme_manager.dart';
+import 'phase3_visual_qa_page.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, this.repository = const SqliteNoteRepository()});
@@ -660,6 +662,26 @@ class _MyHomePageState extends State<MyHomePage> {
                         _showAboutAppDialog();
                       },
                     ),
+                    if (kDebugMode) ...[
+                      const Divider(color: Colors.white10),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.bug_report,
+                          color: Colors.amberAccent,
+                        ),
+                        title: const Text('Phase 3 Visual QA'),
+                        subtitle: const Text('Developer Visual QA Harness'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const Phase3VisualQaPage(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),

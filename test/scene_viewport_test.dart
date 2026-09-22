@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:libre2026/domain/value_objects/value_objects.dart';
 import 'package:libre2026/rendering/scene/scene_viewport.dart';
+import 'package:libre2026/screens/phase3_visual_qa_page.dart';
 
 void main() {
   group('SceneViewport Coordinate Transforms', () {
@@ -183,4 +184,86 @@ void main() {
       },
     );
   });
+
+  group(
+    'phase3QaCanvasSize helper test across all 8 view modes (Vertical & Horizontal)',
+    () {
+      final Map<SceneViewMode, TablePoint> expectedBottomRight = {
+        SceneViewMode.full: const TablePoint(1.0, 1.0),
+        SceneViewMode.half: const TablePoint(1.0, 0.5),
+        SceneViewMode.third: const TablePoint(1.0, 0.375),
+        SceneViewMode.quarter: const TablePoint(1.0, 0.25),
+        SceneViewMode.halfWidth: const TablePoint(0.5, 1.0),
+        SceneViewMode.halfWidthHalfLength: const TablePoint(0.5, 0.5),
+        SceneViewMode.halfWidthThirdLength: const TablePoint(0.5, 0.375),
+        SceneViewMode.halfWidthQuarterLength: const TablePoint(0.5, 0.25),
+      };
+
+      for (final mode in SceneViewMode.values) {
+        test(
+          'phase3QaCanvasSize for $mode vertical maps visible bottom-right to playfieldRect.bottomRight',
+          () {
+            final size = phase3QaCanvasSize(
+              mode,
+              isVertical: true,
+              targetWidth: 280.0,
+            );
+            final viewport = SceneViewport(
+              canvasSize: size,
+              viewMode: mode,
+              isVertical: true,
+              hasBottomRail:
+                  (mode == SceneViewMode.full ||
+                  mode == SceneViewMode.halfWidth),
+            );
+            final expectedPt = expectedBottomRight[mode]!;
+            final offset = viewport.tablePointToOffset(expectedPt);
+
+            expect(
+              offset.dx,
+              closeTo(viewport.playfieldRect.right, 1e-5),
+              reason: 'Failed dx for $mode vertical',
+            );
+            expect(
+              offset.dy,
+              closeTo(viewport.playfieldRect.bottom, 1e-5),
+              reason: 'Failed dy for $mode vertical',
+            );
+          },
+        );
+
+        test(
+          'phase3QaCanvasSize for $mode horizontal maps visible bottom-right to playfieldRect.bottomRight',
+          () {
+            final size = phase3QaCanvasSize(
+              mode,
+              isVertical: false,
+              targetWidth: 280.0,
+            );
+            final viewport = SceneViewport(
+              canvasSize: size,
+              viewMode: mode,
+              isVertical: false,
+              hasBottomRail:
+                  (mode == SceneViewMode.full ||
+                  mode == SceneViewMode.halfWidth),
+            );
+            final expectedPt = expectedBottomRight[mode]!;
+            final offset = viewport.tablePointToOffset(expectedPt);
+
+            expect(
+              offset.dx,
+              closeTo(viewport.playfieldRect.right, 1e-5),
+              reason: 'Failed dx for $mode horizontal',
+            );
+            expect(
+              offset.dy,
+              closeTo(viewport.playfieldRect.bottom, 1e-5),
+              reason: 'Failed dy for $mode horizontal',
+            );
+          },
+        );
+      }
+    },
+  );
 }

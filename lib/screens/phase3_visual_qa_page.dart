@@ -12,6 +12,59 @@ import '../rendering/scene/scene_renderer.dart';
 import '../rendering/scene/scene_viewport.dart';
 import 'fullscreen_billiard_viewer.dart';
 
+/// Helper calculating canonical canvas [Size] for a given [SceneViewMode] and orientation
+/// based on exact diamond proportions and rail boundaries.
+Size phase3QaCanvasSize(
+  SceneViewMode mode, {
+  required bool isVertical,
+  double targetWidth = 280.0,
+}) {
+  final bool hasRightRail =
+      mode != SceneViewMode.halfWidth &&
+      mode != SceneViewMode.halfWidthHalfLength &&
+      mode != SceneViewMode.halfWidthThirdLength &&
+      mode != SceneViewMode.halfWidthQuarterLength;
+
+  final bool hasBottomRail =
+      mode == SceneViewMode.full || mode == SceneViewMode.halfWidth;
+
+  final double railScaleDenom = hasRightRail ? 124.0 : 62.0;
+  final double w = targetWidth;
+  final double totalR = w * (12.0 / railScaleDenom);
+  final double pWidth = w - totalR - (hasRightRail ? totalR : 0.0);
+  final int hSegments = hasRightRail ? 4 : 2;
+  final double diamondSpacing = pWidth / hSegments;
+
+  int vSegments;
+  switch (mode) {
+    case SceneViewMode.full:
+    case SceneViewMode.halfWidth:
+      vSegments = 8;
+      break;
+    case SceneViewMode.half:
+    case SceneViewMode.halfWidthHalfLength:
+      vSegments = 4;
+      break;
+    case SceneViewMode.third:
+    case SceneViewMode.halfWidthThirdLength:
+      vSegments = 3;
+      break;
+    case SceneViewMode.quarter:
+    case SceneViewMode.halfWidthQuarterLength:
+      vSegments = 2;
+      break;
+  }
+
+  final double pHeight = vSegments * diamondSpacing;
+  final double h = totalR + pHeight + (hasBottomRail ? totalR : 0.0);
+
+  if (isVertical) {
+    return Size(w, h);
+  } else {
+    return Size(h, w);
+  }
+}
+
 /// Comprehensive DEV/QA page for visual inspection of Phase 3 scene rendering.
 class Phase3VisualQaPage extends StatefulWidget {
   const Phase3VisualQaPage({super.key});
@@ -30,22 +83,25 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
   late TabController _tabController;
 
   final Map<String, bool> _checklistState = {
-    'Full table đúng tỷ lệ': true,
-    'Crop modes không bị stretch': true,
-    'Vertical đúng': true,
-    'Horizontal đúng': true,
-    'White/yellow/red đúng': true,
-    'Ghost đúng': true,
-    'Numbered ball đúng': true,
-    'Solid path đúng': true,
-    'Dashed path đúng': true,
-    'Label đúng': true,
-    'Rotation đúng': true,
-    'Cushion numbers đúng': true,
-    'DiagramSystem overlay đúng': true,
-    'Animation không regression': true,
-    'Fullscreen không lỗi': true,
+    'Full table đúng tỷ lệ': false,
+    'Crop modes không bị stretch': false,
+    'Vertical đúng': false,
+    'Horizontal đúng': false,
+    'White/yellow/red đúng': false,
+    'Ghost đúng': false,
+    'Numbered ball đúng': false,
+    'Solid path đúng': false,
+    'Dashed path đúng': false,
+    'Label đúng': false,
+    'Rotation đúng': false,
+    'Cushion numbers đúng': false,
+    'DiagramSystem overlay đúng': false,
+    'Animation không regression': false,
+    'Fullscreen không lỗi': false,
   };
+
+  int get _verifiedCount => _checklistState.values.where((v) => v).length;
+  int get _totalCount => _checklistState.length;
 
   @override
   void initState() {
@@ -220,7 +276,19 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Phase 3 SceneRenderer Visual QA'),
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'PHASE 3 VISUAL QA',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              'HUMAN VERIFICATION: PENDING',
+              style: TextStyle(fontSize: 10, color: Colors.amberAccent),
+            ),
+          ],
+        ),
         backgroundColor: const Color(0xFF004D40),
         bottom: TabBar(
           controller: _tabController,
@@ -254,12 +322,17 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
                     isVertical: _isVertical,
                     animationProgress: _animationProgress,
                   );
+                  final size = phase3QaCanvasSize(
+                    SceneViewMode.full,
+                    isVertical: _isVertical,
+                    targetWidth: 320.0,
+                  );
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => FullscreenBilliardViewer(
                         child: AspectRatio(
-                          aspectRatio: _isVertical ? (1.0 / 2.0) : (2.0 / 1.0),
+                          aspectRatio: size.width / size.height,
                           child: SceneRenderer(model: model),
                         ),
                       ),
@@ -277,41 +350,59 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
           Container(
             color: const Color(0xFF00332C),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Chip(
-                  label: Text(
-                    _isVertical
-                        ? 'Orientation: Vertical'
-                        : 'Orientation: Horizontal',
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  Chip(
+                    label: Text(
+                      _isVertical
+                          ? 'Orientation: Vertical'
+                          : 'Orientation: Horizontal',
+                    ),
+                    backgroundColor: Colors.teal.shade800,
+                    labelStyle: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                    ),
                   ),
-                  backgroundColor: Colors.teal.shade800,
-                  labelStyle: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
+                  const SizedBox(width: 8),
+                  Text(
+                    'Verified: $_verifiedCount / $_totalCount',
+                    style: const TextStyle(
+                      color: Colors.amberAccent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                ChoiceChip(
-                  label: const Text('Standard Grid'),
-                  selected: _diagramSystemIndex == 0,
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() => _diagramSystemIndex = 0);
-                    }
-                  },
-                ),
-                const SizedBox(width: 4),
-                ChoiceChip(
-                  label: const Text('Diamond System'),
-                  selected: _diagramSystemIndex == 1,
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() => _diagramSystemIndex = 1);
-                    }
-                  },
-                ),
-              ],
+                  const SizedBox(width: 16),
+                  ChoiceChip(
+                    label: const Text(
+                      'Standard Grid',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    selected: _diagramSystemIndex == 0,
+                    onSelected: (selected) {
+                      if (selected) {
+                        setState(() => _diagramSystemIndex = 0);
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 4),
+                  ChoiceChip(
+                    label: const Text(
+                      'Diamond System',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    selected: _diagramSystemIndex == 1,
+                    onSelected: (selected) {
+                      if (selected) {
+                        setState(() => _diagramSystemIndex = 1);
+                      }
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
           Expanded(
@@ -334,7 +425,7 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
     );
   }
 
-  /// Tab 1: Renders grid of all 8 View Modes.
+  /// Tab 1: Renders grid of all 8 View Modes using canonical diamond sizing.
   Widget _build8ViewModesGrid() {
     final modes = SceneViewMode.values;
     return ListView.builder(
@@ -345,6 +436,11 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
         final model = _buildSampleRenderModel(
           viewMode: mode,
           isVertical: _isVertical,
+        );
+        final size = phase3QaCanvasSize(
+          mode,
+          isVertical: _isVertical,
+          targetWidth: _isVertical ? 260.0 : 340.0,
         );
 
         return Card(
@@ -363,7 +459,7 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.amberAccent,
-                        fontSize: 16,
+                        fontSize: 15,
                       ),
                     ),
                     IconButton(
@@ -374,9 +470,7 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
                           MaterialPageRoute(
                             builder: (context) => FullscreenBilliardViewer(
                               child: AspectRatio(
-                                aspectRatio: _isVertical
-                                    ? (1.0 / 2.0)
-                                    : (2.0 / 1.0),
+                                aspectRatio: size.width / size.height,
                                 child: SceneRenderer(model: model),
                               ),
                             ),
@@ -389,11 +483,11 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
                 const SizedBox(height: 8),
                 Center(
                   child: Container(
+                    width: size.width,
+                    height: size.height,
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.white24),
                     ),
-                    width: _isVertical ? 260 : 380,
-                    height: _isVertical ? 380 : 260,
                     child: SceneRenderer(model: model),
                   ),
                 ),
@@ -405,12 +499,17 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
     );
   }
 
-  /// Tab 2: Interactive Animation Playback Demo.
+  /// Tab 2: Interactive Animation Playback Demo using canonical diamond sizing.
   Widget _buildPlaybackAnimationTab() {
     final animatedModel = _buildSampleRenderModel(
       viewMode: SceneViewMode.full,
       isVertical: _isVertical,
       animationProgress: _animationProgress,
+    );
+    final size = phase3QaCanvasSize(
+      SceneViewMode.full,
+      isVertical: _isVertical,
+      targetWidth: _isVertical ? 260.0 : 360.0,
     );
 
     return Column(
@@ -433,11 +532,11 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
           child: Center(
             child: Container(
               margin: const EdgeInsets.all(16),
+              width: size.width,
+              height: size.height,
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.amberAccent, width: 2),
               ),
-              width: _isVertical ? 280 : 440,
-              height: _isVertical ? 440 : 280,
               child: SceneRenderer(model: animatedModel),
             ),
           ),
@@ -490,11 +589,16 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
     );
   }
 
-  /// Tab 3: Mini Effet Overlay Demo.
+  /// Tab 3: Mini Effet Overlay Demo using canonical diamond sizing.
   Widget _buildEffetDemoTab() {
     final model = _buildSampleRenderModel(
       viewMode: SceneViewMode.full,
       isVertical: _isVertical,
+    );
+    final size = phase3QaCanvasSize(
+      SceneViewMode.full,
+      isVertical: _isVertical,
+      targetWidth: _isVertical ? 260.0 : 360.0,
     );
 
     return SingleChildScrollView(
@@ -517,11 +621,11 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
           ),
           const SizedBox(height: 16),
           Container(
+            width: size.width,
+            height: size.height,
             decoration: BoxDecoration(
               border: Border.all(color: Colors.white24),
             ),
-            width: _isVertical ? 280 : 420,
-            height: _isVertical ? 420 : 280,
             child: SceneRenderer(model: model),
           ),
         ],
@@ -529,22 +633,34 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
     );
   }
 
-  /// Tab 4: On-Screen QA Checklist.
+  /// Tab 4: On-Screen QA Checklist (all unchecked by default).
   Widget _buildChecklistTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
-          'Phase 3 Visual Verification Checklist',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.amberAccent,
-            fontSize: 18,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Phase 3 Visual Verification Checklist',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.amberAccent,
+                fontSize: 17,
+              ),
+            ),
+            Chip(
+              label: Text('Verified: $_verifiedCount / $_totalCount'),
+              backgroundColor: _verifiedCount == _totalCount
+                  ? Colors.teal.shade700
+                  : Colors.amber.shade900,
+              labelStyle: const TextStyle(color: Colors.white, fontSize: 11),
+            ),
+          ],
         ),
         const SizedBox(height: 4),
         const Text(
-          'Interactive manual inspection items for Phase 3 SceneRenderer.',
+          'Interactive manual inspection items. Unchecked items represent PENDING verification state.',
           style: TextStyle(color: Colors.white70, fontSize: 12),
         ),
         const Divider(color: Colors.white24, height: 24),
@@ -554,10 +670,15 @@ class _Phase3VisualQaPageState extends State<Phase3VisualQaPage>
             title: Text(
               item,
               style: TextStyle(
-                color: isChecked ? Colors.white : Colors.white60,
-                decoration: isChecked
-                    ? TextDecoration.none
-                    : TextDecoration.lineThrough,
+                color: isChecked ? Colors.tealAccent : Colors.white,
+                fontWeight: isChecked ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+            subtitle: Text(
+              isChecked ? 'VERIFIED' : 'PENDING',
+              style: TextStyle(
+                color: isChecked ? Colors.tealAccent : Colors.amber,
+                fontSize: 11,
               ),
             ),
             value: isChecked,

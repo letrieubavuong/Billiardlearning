@@ -8,6 +8,7 @@ import 'package:libre2026/domain/value_objects/value_objects.dart';
 import 'package:libre2026/rendering/scene/scene_render_model.dart';
 import 'package:libre2026/rendering/scene/scene_renderer.dart';
 import 'package:libre2026/rendering/scene/legacy/legacy_render_adapter.dart';
+import 'package:libre2026/screens/home_page.dart';
 import 'package:libre2026/screens/phase3_visual_qa_page.dart';
 import 'package:libre2026/widgets/billiard_diagram.dart';
 
@@ -241,5 +242,54 @@ void main() {
 
       expect(find.byType(Phase3VisualQaPage), findsOneWidget);
     });
+
+    testWidgets(
+      'Phase3VisualQaPage human checklist defaults to verified count = 0',
+      (tester) async {
+        await tester.pumpWidget(const MaterialApp(home: Phase3VisualQaPage()));
+
+        expect(find.text('Verified: 0 / 15'), findsOneWidget);
+        expect(find.text('HUMAN VERIFICATION: PENDING'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Debug entry point in home page opens Phase3VisualQaPage', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const MaterialApp(home: MyHomePage()));
+
+      final ScaffoldState state = tester.firstState(find.byType(Scaffold));
+      state.openDrawer();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      await tester.dragFrom(const Offset(150, 400), const Offset(0, -300));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final finder = find.text('Phase 3 Visual QA');
+      expect(finder, findsOneWidget);
+      await tester.tap(finder);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byType(Phase3VisualQaPage), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+      'Phase3VisualQaPage overflow test across modes and orientations',
+      (tester) async {
+        await tester.pumpWidget(const MaterialApp(home: Phase3VisualQaPage()));
+        await tester.pump();
+
+        expect(tester.takeException(), isNull);
+
+        final switchFinder = find.byType(Switch);
+        await tester.tap(switchFinder);
+        await tester.pump();
+
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }

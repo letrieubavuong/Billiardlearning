@@ -106,9 +106,18 @@ Human visual verification:
 PENDING
 
 Full test suite:
-TOTAL = 85
-PASSED = 85
+TOTAL = 104
+PASSED = 104
 FAILED = 0
+
+## Visual QA Harness External Review Fix
+
+* Checklist default values are all `false` (unchecked = PENDING verification).
+* Implemented `phase3QaCanvasSize` helper for exact canonical diamond-based canvas sizing across all 8 view modes.
+* All 8 view modes verified for bottom-right mapping `TablePoint` -> `playfieldRect.bottomRight`.
+* Horizontal & Vertical aspect ratio sizing fixed; fullscreen viewer updated to use calculated `size.width / size.height`.
+* Added debug-only drawer entry (`if (kDebugMode)`) in `MyHomePage` to launch `Phase3VisualQaPage`.
+* Human visual verification status remains `PENDING`.
 
 ## Known limitations
 
