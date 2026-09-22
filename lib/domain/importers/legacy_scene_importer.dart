@@ -43,6 +43,48 @@ class LegacySceneImportResult {
 
 /// Pure Dart importer converting legacy diagram JSON maps into vNext [BilliardScene] candidates.
 class LegacySceneImporter {
+  /// Safe helper extracting integer from dynamic value without throwing CastError.
+  static int? parseOptionalInt(
+    dynamic value,
+    String fieldName,
+    List<LegacyImportWarning> warnings,
+  ) {
+    if (value == null) return null;
+    if (value is num) {
+      return value.toInt();
+    }
+    warnings.add(
+      LegacyImportWarning(
+        code: 'INVALID_FIELD_TYPE',
+        message:
+            'Expected numeric integer for $fieldName, got ${value.runtimeType} ($value)',
+        field: fieldName,
+      ),
+    );
+    return null;
+  }
+
+  /// Safe helper extracting double from dynamic value without throwing CastError.
+  static double? parseOptionalDouble(
+    dynamic value,
+    String fieldName,
+    List<LegacyImportWarning> warnings,
+  ) {
+    if (value == null) return null;
+    if (value is num) {
+      return value.toDouble();
+    }
+    warnings.add(
+      LegacyImportWarning(
+        code: 'INVALID_FIELD_TYPE',
+        message:
+            'Expected number for $fieldName, got ${value.runtimeType} ($value)',
+        field: fieldName,
+      ),
+    );
+    return null;
+  }
+
   /// Converts ARGB integer (e.g. 4294967295) or String to #AARRGGBB hex color format.
   static String? parseColorHex(
     dynamic value,
@@ -180,7 +222,18 @@ class LegacySceneImporter {
     final warnings = <LegacyImportWarning>[];
 
     // 1. Schema version validation
-    final schemaVersion = json['schemaVersion'] as int? ?? 1;
+    int schemaVersion = 1;
+    if (json.containsKey('schemaVersion')) {
+      final parsedVersion = parseOptionalInt(
+        json['schemaVersion'],
+        'schemaVersion',
+        warnings,
+      );
+      if (parsedVersion != null) {
+        schemaVersion = parsedVersion;
+      }
+    }
+
     if (schemaVersion != 1) {
       warnings.add(
         LegacyImportWarning(
@@ -301,8 +354,16 @@ class LegacySceneImporter {
                 warnings,
               );
               final number = item['number']?.toString();
-              final rotation = (item['rotation'] as num?)?.toDouble();
-              final legacyType = (item['type'] as num?)?.toInt();
+              final rotation = parseOptionalDouble(
+                item['rotation'],
+                '$context.rotation',
+                warnings,
+              );
+              final legacyType = parseOptionalInt(
+                item['type'],
+                '$context.type',
+                warnings,
+              );
               balls.add(
                 BallPosition(
                   id: 'ghost_$i',
@@ -352,12 +413,39 @@ class LegacySceneImporter {
         final pathsMap = rawPaths;
 
         // Path colors lookup
-        final pathColorsMap = json['pathColors'] is Map
-            ? json['pathColors'] as Map
-            : null;
-        final freePathColorsList = json['freePathColors'] is List
-            ? json['freePathColors'] as List
-            : null;
+        Map? pathColorsMap;
+        if (json.containsKey('pathColors')) {
+          final rawPathColors = json['pathColors'];
+          if (rawPathColors is Map) {
+            pathColorsMap = rawPathColors;
+          } else {
+            warnings.add(
+              LegacyImportWarning(
+                code: 'INVALID_FIELD_TYPE',
+                message:
+                    'Expected Map for pathColors, got ${rawPathColors.runtimeType}',
+                field: 'pathColors',
+              ),
+            );
+          }
+        }
+
+        List? freePathColorsList;
+        if (json.containsKey('freePathColors')) {
+          final rawFreeColors = json['freePathColors'];
+          if (rawFreeColors is List) {
+            freePathColorsList = rawFreeColors;
+          } else {
+            warnings.add(
+              LegacyImportWarning(
+                code: 'INVALID_FIELD_TYPE',
+                message:
+                    'Expected List for freePathColors, got ${rawFreeColors.runtimeType}',
+                field: 'freePathColors',
+              ),
+            );
+          }
+        }
 
         // Trajectory waypoints parser helper
         List<TablePoint> parsePolyline(List rawPoints, String pathKey) {
@@ -551,7 +639,11 @@ class LegacySceneImporter {
                 '$context.color',
                 warnings,
               );
-              final rotation = (item['rotation'] as num?)?.toDouble();
+              final rotation = parseOptionalDouble(
+                item['rotation'],
+                '$context.rotation',
+                warnings,
+              );
               final role = item['role']?.toString();
               annotations.add(
                 SceneAnnotation(
@@ -600,7 +692,11 @@ class LegacySceneImporter {
                 '$context.color',
                 warnings,
               );
-              final rotation = (item['rotation'] as num?)?.toDouble();
+              final rotation = parseOptionalDouble(
+                item['rotation'],
+                '$context.rotation',
+                warnings,
+              );
               final cushionSide = item['cushionSide']?.toString();
               annotations.add(
                 SceneAnnotation(
@@ -639,75 +735,95 @@ class LegacySceneImporter {
 
     // 5. Cue Instruction & Deferred Effet Fields
     CueInstruction? cueInstruction;
-    if (json.containsKey('effet') && json['effet'] is Map) {
-      final effetMap = json['effet'] as Map;
+    if (json.containsKey('effet')) {
+      final rawEffet = json['effet'];
+      if (rawEffet is Map) {
+        final effetMap = rawEffet;
 
-      Vec2 tipOffset = Vec2.zero;
-      if (effetMap.containsKey('effet') && effetMap['effet'] is List) {
-        final offsetList = effetMap['effet'] as List;
-        if (offsetList.length >= 2 &&
-            offsetList[0] is num &&
-            offsetList[1] is num) {
-          tipOffset = Vec2(
-            (offsetList[0] as num).toDouble(),
-            (offsetList[1] as num).toDouble(),
-          );
-        } else {
+        Vec2 tipOffset = Vec2.zero;
+        if (effetMap.containsKey('effet')) {
+          final offsetList = effetMap['effet'];
+          if (offsetList is List &&
+              offsetList.length >= 2 &&
+              offsetList[0] is num &&
+              offsetList[1] is num) {
+            tipOffset = Vec2(
+              (offsetList[0] as num).toDouble(),
+              (offsetList[1] as num).toDouble(),
+            );
+          } else {
+            warnings.add(
+              LegacyImportWarning(
+                code: 'INVALID_FIELD_TYPE',
+                message: 'Expected List with 2 numeric values for effet offset',
+                field: 'effet.effet',
+              ),
+            );
+          }
+        }
+
+        // Power is unresolved because legacy format stores forceImage asset path, not normalized power
+        cueInstruction = CueInstruction(
+          power: 0.0,
+          direction: const Angle.fromRadians(0.0),
+          tipOffset: tipOffset,
+          powerIsResolved: false,
+        );
+
+        if (effetMap.containsKey('forceImage')) {
           warnings.add(
             LegacyImportWarning(
-              code: 'INVALID_FIELD_TYPE',
-              message: 'Expected 2 numeric values for effet offset list',
-              field: 'effet.effet',
+              code: 'DEFERRED_FIELD_FORCE_IMAGE',
+              message:
+                  'Asset forceImage (${effetMap['forceImage']}) deferred for Phase 15/16 physical power calibration',
+              field: 'effet.forceImage',
             ),
           );
         }
-      }
 
-      // Power is unresolved because legacy format stores forceImage asset path, not normalized power
-      cueInstruction = CueInstruction(
-        power: 0.0,
-        direction: const Angle.fromRadians(0.0),
-        tipOffset: tipOffset,
-        powerIsResolved: false,
-      );
+        if (effetMap.containsKey('cueAngle')) {
+          warnings.add(
+            LegacyImportWarning(
+              code: 'DEFERRED_FIELD_CUE_ANGLE',
+              message:
+                  'Cue elevation cueAngle (${effetMap['cueAngle']}°) deferred to Phase 15 Cue Strike Model',
+              field: 'effet.cueAngle',
+            ),
+          );
+        }
 
-      if (effetMap.containsKey('forceImage')) {
+        if (effetMap.containsKey('thickness')) {
+          warnings.add(
+            LegacyImportWarning(
+              code: 'DEFERRED_FIELD_THICKNESS',
+              message:
+                  'Contact thickness (${effetMap['thickness']}) deferred to Phase 6 Lesson Domain',
+              field: 'effet.thickness',
+            ),
+          );
+        }
+      } else {
         warnings.add(
           LegacyImportWarning(
-            code: 'DEFERRED_FIELD_FORCE_IMAGE',
-            message:
-                'Asset forceImage (${effetMap['forceImage']}) deferred for Phase 15/16 physical power calibration',
-            field: 'effet.forceImage',
-          ),
-        );
-      }
-
-      if (effetMap.containsKey('cueAngle')) {
-        warnings.add(
-          LegacyImportWarning(
-            code: 'DEFERRED_FIELD_CUE_ANGLE',
-            message:
-                'Cue elevation cueAngle (${effetMap['cueAngle']}°) deferred to Phase 15 Cue Strike Model',
-            field: 'effet.cueAngle',
-          ),
-        );
-      }
-
-      if (effetMap.containsKey('thickness')) {
-        warnings.add(
-          LegacyImportWarning(
-            code: 'DEFERRED_FIELD_THICKNESS',
-            message:
-                'Contact thickness (${effetMap['thickness']}) deferred to Phase 6 Lesson Domain',
-            field: 'effet.thickness',
+            code: 'INVALID_FIELD_TYPE',
+            message: 'Expected Map for effet, got ${rawEffet.runtimeType}',
+            field: 'effet',
           ),
         );
       }
     }
 
     // 6. Visual presentation metadata
-    final systemIndex = json['system'] as int? ?? 0;
-    final viewTypeIndex = json['viewType'] as int? ?? 0;
+    int systemIndex = 0;
+    if (json.containsKey('system')) {
+      systemIndex = parseOptionalInt(json['system'], 'system', warnings) ?? 0;
+    }
+
+    int viewTypeIndex = 0;
+    if (json.containsKey('viewType')) {
+      viewTypeIndex =
+          parseOptionalInt(json['viewType'], 'viewType', warnings) ?? 0;
+    }
 
     if (systemIndex < 0 || systemIndex > 5) {
       warnings.add(
@@ -731,7 +847,14 @@ class LegacySceneImporter {
       );
     }
 
-    final labelFontSize = (json['labelFontSize'] as num?)?.toDouble();
+    double? labelFontSize;
+    if (json.containsKey('labelFontSize')) {
+      labelFontSize = parseOptionalDouble(
+        json['labelFontSize'],
+        'labelFontSize',
+        warnings,
+      );
+    }
 
     final presentationConfig = ScenePresentationConfig(
       legacySystemIndex: systemIndex,

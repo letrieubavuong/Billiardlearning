@@ -30,6 +30,10 @@ class BallPosition {
   final TablePoint position;
   final String? label;
   final String? colorHex;
+
+  /// Presentation rotation angle in degrees.
+  ///
+  /// Converted to radians by the renderer (Phase 3) when performing rendering transformations.
   final double? rotation;
   final int? legacyType;
 
@@ -61,6 +65,10 @@ class SceneAnnotation {
   final String text;
   final TablePoint position;
   final String? colorHex;
+
+  /// Presentation rotation angle in degrees.
+  ///
+  /// Converted to radians by the renderer (Phase 3) when performing rendering transformations.
   final double? rotation;
   final String? role;
   final String? cushionSide;

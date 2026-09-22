@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:libre2026/data/mappers/mappers.dart';
+import 'package:libre2026/data/models/sqlite_models.dart';
 import 'package:libre2026/domain/entities/entities.dart';
 import 'package:libre2026/domain/importers/legacy_scene_importer.dart';
 import 'package:libre2026/domain/value_objects/value_objects.dart';
 
 void main() {
-  group('LegacySceneImporter (Phase 2 Real Legacy Fixes)', () {
+  group('LegacySceneImporter (Phase 2 Real Legacy Fixes & Hardening)', () {
     test('imports real legacy diagram JSON payload with full fidelity', () {
       const rawJson = '''
       {
@@ -229,6 +231,57 @@ void main() {
       expect(warningCodes, contains('MISSING_REQUIRED_COORDINATE'));
     });
 
+    test(
+      'handles malformed metadata fields gracefully without dropping valid positional data',
+      () {
+        final jsonMap = <String, dynamic>{
+          'schemaVersion': 'bad_version',
+          'system': 'bad_system',
+          'viewType': 'bad_viewtype',
+          'labelFontSize': 'large',
+          'white': [2.0, 4.0],
+          'ghosts': [
+            {
+              'x': 2.0,
+              'y': 4.0,
+              'rotation': 'bad_rotation',
+              'type': 'bad_type',
+              'color': 4294967295,
+              'number': '1',
+            },
+          ],
+          'labels': [
+            {'x': 1.0, 'y': 2.0, 'text': 'A', 'rotation': 'bad_rotation'},
+          ],
+          'pathColors': 'bad_path_colors',
+          'freePathColors': 'bad_free_path_colors',
+          'effet': 'bad_effet',
+        };
+
+        final result = LegacySceneImporter.importJsonMap(jsonMap);
+
+        // Positional objects white & ghost are imported
+        expect(result.scene.balls.length, equals(2));
+        final ghost = result.scene.balls.firstWhere(
+          (b) => b.ballType == 'ghost',
+        );
+        expect(ghost.position, equals(const TablePoint(0.5, 0.5)));
+        expect(ghost.rotation, isNull);
+        expect(ghost.legacyType, isNull);
+        expect(ghost.label, equals('1'));
+
+        // Annotation text + position is imported
+        expect(result.scene.annotations.length, equals(1));
+        final labelAnno = result.scene.annotations.first;
+        expect(labelAnno.text, equals('A'));
+        expect(labelAnno.position, equals(const TablePoint(0.25, 0.25)));
+        expect(labelAnno.rotation, isNull);
+
+        final warningCodes = result.warnings.map((w) => w.code).toList();
+        expect(warningCodes, contains('INVALID_FIELD_TYPE'));
+      },
+    );
+
     test('out-of-bounds legacy coordinates emit diagnostic warning', () {
       final jsonMap = <String, dynamic>{
         'white': [5.0, 10.0],
@@ -244,6 +297,198 @@ void main() {
         (w) => w.code == 'OUT_OF_BOUNDS_COORDINATE',
       );
       expect(outOfBoundsWarning.field, equals('white'));
+    });
+
+    group('SceneMapper Phase 2 Extended Roundtrip & Backward Compatibility', () {
+      test(
+        'SceneMapper round-trips all Phase 2 extended fields completely',
+        () {
+          final now = DateTime.utc(2026, 9, 22, 10, 0, 0);
+          final scene = BilliardScene(
+            id: 'scene-uuid-full-phase2',
+            name: 'Thế bi đầy đủ metadata Phase 2',
+            tableConfig: const TableConfig(
+              type: 'carom_3c',
+              widthMeters: 1.42,
+              lengthMeters: 2.84,
+            ),
+            balls: const [
+              BallPosition(
+                id: 'ball-1',
+                ballType: 'ghost',
+                position: TablePoint(0.5, 0.5),
+                label: '1',
+                colorHex: '#FFFFFFFF',
+                rotation: 25.0,
+                legacyType: 0,
+              ),
+              BallPosition(
+                id: 'ball-2',
+                ballType: 'extra',
+                position: TablePoint(0.375, 0.375),
+                label: '7',
+                colorHex: '#FF2196F3',
+              ),
+            ],
+            trajectories: const [
+              TrajectoryLine(
+                id: 'traj-1',
+                colorHex: '#FF000000',
+                points: [TablePoint(0.5, 0.5), TablePoint(0.0, 0.0)],
+              ),
+            ],
+            annotations: const [
+              SceneAnnotation(
+                id: 'anno-1',
+                text: 'Bi chủ chạm 1/2 bi',
+                position: TablePoint(0.5, 0.75),
+                colorHex: '#FFFFFFFF',
+                rotation: 15.0,
+                role: 'cueBall',
+              ),
+              SceneAnnotation(
+                id: 'anno-2',
+                text: '50',
+                position: TablePoint(0.0, 0.5),
+                colorHex: '#FFFFFFFF',
+                rotation: 0.0,
+                role: 'cushionNumber',
+                cushionSide: 'left',
+              ),
+            ],
+            cueInstruction: CueInstruction(
+              power: 0.0,
+              direction: Angle.fromRadians(0.0),
+              tipOffset: const Vec2(0.1, -0.2),
+              powerIsResolved: false,
+            ),
+            presentationConfig: const ScenePresentationConfig(
+              legacySystemIndex: 2,
+              legacyViewTypeIndex: 3,
+              labelFontSize: 16.5,
+            ),
+            teachingTimeline: null,
+            source: SceneSource.importSource,
+            status: SceneStatus.active,
+            version: 1,
+            createdAt: now,
+            updatedAt: now,
+          );
+
+          final row = SceneMapper.domainToRow(scene);
+          final restored = SceneMapper.rowToDomain(row);
+
+          expect(restored.id, equals(scene.id));
+          expect(restored.name, equals(scene.name));
+          expect(restored.teachingTimeline, isNull);
+
+          // Assert BallPosition Phase 2 fields
+          expect(restored.balls.length, equals(2));
+          final b1 = restored.balls.firstWhere((b) => b.id == 'ball-1');
+          expect(b1.ballType, equals('ghost'));
+          expect(b1.position, equals(const TablePoint(0.5, 0.5)));
+          expect(b1.label, equals('1'));
+          expect(b1.colorHex, equals('#FFFFFFFF'));
+          expect(b1.rotation, equals(25.0));
+          expect(b1.legacyType, equals(0));
+
+          final b2 = restored.balls.firstWhere((b) => b.id == 'ball-2');
+          expect(b2.ballType, equals('extra'));
+          expect(b2.label, equals('7'));
+          expect(b2.colorHex, equals('#FF2196F3'));
+
+          // Assert SceneAnnotation Phase 2 fields
+          expect(restored.annotations.length, equals(2));
+          final a1 = restored.annotations.firstWhere((a) => a.id == 'anno-1');
+          expect(a1.text, equals('Bi chủ chạm 1/2 bi'));
+          expect(a1.colorHex, equals('#FFFFFFFF'));
+          expect(a1.rotation, equals(15.0));
+          expect(a1.role, equals('cueBall'));
+
+          final a2 = restored.annotations.firstWhere((a) => a.id == 'anno-2');
+          expect(a2.text, equals('50'));
+          expect(a2.role, equals('cushionNumber'));
+          expect(a2.cushionSide, equals('left'));
+
+          // Assert CueInstruction Phase 2 fields
+          expect(restored.cueInstruction, isNotNull);
+          expect(restored.cueInstruction!.power, equals(0.0));
+          expect(restored.cueInstruction!.powerIsResolved, isFalse);
+          expect(
+            restored.cueInstruction!.tipOffset,
+            equals(const Vec2(0.1, -0.2)),
+          );
+
+          // Assert ScenePresentationConfig Phase 2 fields
+          expect(restored.presentationConfig, isNotNull);
+          expect(restored.presentationConfig!.legacySystemIndex, equals(2));
+          expect(restored.presentationConfig!.legacyViewTypeIndex, equals(3));
+          expect(restored.presentationConfig!.labelFontSize, equals(16.5));
+        },
+      );
+
+      test(
+        'SceneMapper deserializes old legacy row missing Phase 2 fields with backward compatibility',
+        () {
+          final oldRow = SqliteSceneRow(
+            id: 'old-scene-1',
+            name: 'Sơ đồ cũ Phase 1',
+            tableConfigJson: jsonEncode({
+              'type': 'carom_3c',
+              'widthMeters': 1.42,
+              'lengthMeters': 2.84,
+            }),
+            ballsJson: jsonEncode([
+              {
+                'id': 'b-1',
+                'ballType': 'white',
+                'position': {'u': 0.5, 'v': 0.5},
+              },
+            ]),
+            trajectoriesJson: jsonEncode([
+              {
+                'id': 't-1',
+                'colorHex': '#FFFFFF',
+                'points': [
+                  {'u': 0.5, 'v': 0.5},
+                ],
+              },
+            ]),
+            annotationsJson: jsonEncode([
+              {
+                'id': 'a-1',
+                'text': 'Chú thích cũ',
+                'position': {'u': 0.5, 'v': 0.5},
+              },
+            ]),
+            cueInstructionJson: jsonEncode({
+              'power': 0.5,
+              'directionRadians': 0.0,
+              'tipOffset': {'x': 0.0, 'y': 0.0},
+            }),
+            teachingTimelineJson: null,
+            source: 'manual',
+            status: 'active',
+            version: 1,
+            createdAt: '2026-09-22T10:00:00.000Z',
+            updatedAt: '2026-09-22T10:00:00.000Z',
+          );
+
+          final restored = SceneMapper.rowToDomain(oldRow);
+
+          expect(restored.id, equals('old-scene-1'));
+          expect(restored.presentationConfig, isNull);
+          expect(restored.balls.first.label, isNull);
+          expect(restored.balls.first.colorHex, isNull);
+          expect(restored.balls.first.rotation, isNull);
+          expect(restored.balls.first.legacyType, isNull);
+          expect(restored.annotations.first.colorHex, isNull);
+          expect(restored.annotations.first.rotation, isNull);
+          expect(restored.annotations.first.role, isNull);
+          expect(restored.annotations.first.cushionSide, isNull);
+          expect(restored.cueInstruction!.powerIsResolved, isTrue);
+        },
+      );
     });
   });
 }
