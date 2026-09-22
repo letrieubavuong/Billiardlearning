@@ -3,9 +3,9 @@
 | Phase | Tên | Status | Review note |
 |---:|---|---|---|
 | -1 | Legacy Audit & Specification Reset | DONE | External review PASS; legacy audit, migration map and baseline verified |
-| 0 | Pure Dart Domain Foundation | REVIEW | Pure Dart domain foundation finalized with UUID v4 & pure domain tests |
+| 0 | Pure Dart Domain Foundation | DONE | External review PASS; UUID v4, Pure Dart domain boundary and domain tests verified |
 | 1 | Repository + SQLite Architecture | DONE | Phase 1 repository & SQLite architecture approved & pass |
-| 2 | Scene Model + Coordinate System | NOT_STARTED | |
+| 2 | Scene Model + Coordinate System | REVIEW | Pure Dart TableGeometry, 4-tier coordinate engine & LegacySceneImporter verified |
 | 3 | Scene Renderer Refactor | NOT_STARTED | |
 | 4 | Scene Editor Migration | NOT_STARTED | |
 | 5 | Teaching Trajectory + Animation | NOT_STARTED | |

@@ -156,9 +156,9 @@ Báo cáo nghiệm thu hoàn tất các hạng mục của **Phase 0 — Pure Da
 
 ## Recommended phase status
 - **Phase -1:** `DONE`
-- **Phase 0:** `REVIEW` (Ready for external review)
+- **Phase 0:** `DONE` (External review PASS; commit `dcf4531ef962f369ff531a86081f463d0b7ce27c`)
 - **Phase 1:** `DONE`
-- **Phase 2:** `NOT_STARTED`
+- **Phase 2:** `IN_PROGRESS`
 
 ---
 
