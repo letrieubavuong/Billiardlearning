@@ -4,85 +4,66 @@
 
 Phase 3 — Scene Renderer Refactor đã hoàn tất tách rendering khỏi god-file legacy `lib/widgets/billiard_diagram.dart` (~2269 dòng) thành gói rendering mô-đun hóa độc lập tại `lib/rendering/scene/`. Các responsibilities chính (mặt bàn, bi, đường chạy, chú thích/góc quay, viewport transform, và adapter tương thích) đã được phân tách rõ ràng.
 
-## Renderer architecture before
+Tất cả các góp ý của External Reviewer đã được sửa triệt để và kiểm chứng tự động.
 
-* God-file `lib/widgets/billiard_diagram.dart` chịu trách nhiệm đồng thời:
-  * Table geometry, cushion, grid, minor ticks, diamonds.
-  * DiagramSystem overlays (xohaibang, babangcha).
-  * Ball, ghost shadow, outline, measles pattern, 3D highlight.
-  * Trajectory line drawing, dashed paths, progressive points.
-  * Labels, cushion numbers, angle arcs, mini-effet diagram.
-  * Viewport coordinate transforms & animation progress timing heuristics.
+## External review corrections
+
+1. **Legacy Coordinate Conversion**:
+   Đã thêm helper `LegacyRenderAdapter.legacyRelativeToTablePoint(Offset p)` chuyển đổi chính xác từ tọa độ tương đối legacy `Offset(xDiamond/4, yDiamond/4)` sang canonical `TablePoint(u = dx, v = dy / 2.0)` cho `Ball`, `BallPath`, `BilliardLabel`, và `BilliardAngle`.
+2. **Crop Viewport Non-Stretching Semantics**:
+   Đã sửa `SceneViewport` để tính `fullTablePixelWidth` ($4 \times \text{diamondSpacing}$) và `fullTablePixelHeight` ($8 \times \text{diamondSpacing}$). Các chế độ view cắt bàn (`half`, `third`, `quarter`, `halfWidth`,...) sử dụng cùng tỉ lệ diamond và không bị co kéo/bóp méo hình ảnh bàn.
+3. **View Boundaries & Inverse Viewport**:
+   Đã cập nhật phạm vi hiển thị cho cả 8 chế độ view và đảm bảo phép chuyển đổi ngược `offsetToTablePoint(tablePointToOffset(pt))` chính xác trên 100% các chế độ view mode.
+4. **Legacy Playback Metric**:
+   Đã tạo `LegacyPlaybackCompatibility.distance()` tính khoảng cách theo công thức chuẩn 1:2 aspect ratio:
+   $$\text{dist} = \sqrt{\Delta u^2 + (2 \times \Delta v)^2}$$
+   Đã kiểm tra khoảng cách 2 nút ngang (`TablePoint(0,0)` $\rightarrow$ `TablePoint(0.5,0)`) và 2 nút dọc (`TablePoint(0,0)` $\rightarrow$ `TablePoint(0,0.25)`) có độ dài đại số legacy bằng nhau (= 0.5).
+5. **Domain Ghost & Extra Ball Semantics**:
+   `LegacyRenderAdapter.sceneToRenderModel()` đã xử lý đúng:
+   * Bi ghost domain (`ballType = 'ghost'` hoặc `legacyType = 1`) $\rightarrow$ `isGhost = true`, `opacity = 0.5`.
+   * Bi extra domain (`ballType = 'extra'` có nhãn) $\rightarrow$ `ballTypeIndex = 2` (bi đánh số) và hiển thị số tương ứng.
+6. **Domain `hasBottomRail` Correction**:
+   Tự động suy ra `hasBottomRail = true` cho `full` (0) và `halfWidth` (4), `false` cho các chế độ view cắt ngắn khác.
+7. **Analyzer Scope Restoration**:
+   Đã gỡ bỏ toàn bộ cấu hình loại trừ `android/**`, `ios/**`, `windows/**` trong `analysis_options.yaml`.
+8. **Visual Verification Status Realism**:
+   Đã tách biệt kết quả tự động `AUTOMATED VERIFICATION = PASS` và kết quả kiểm tra mắt người `HUMAN VISUAL VERIFICATION = PENDING`.
 
 ## Renderer architecture after
 
-Cấu trúc mới trong `lib/rendering/scene/`:
-* `scene_viewport.dart`: Quản lý kích thước canvas, vùng chơi, và chuyển đổi tọa độ hai chiều giữa [TablePoint] (u,v ∈ [0,1]) và Canvas pixel [Offset].
-* `scene_render_model.dart`: Định nghĩa DTO bất biến (`SceneRenderModel`, `BallRenderItem`, `TrajectoryRenderItem`, `AnnotationRenderItem`, `AngleRenderItem`, `EffetRenderData`) và theme `SceneRenderTheme`.
-* `table_renderer.dart`: Render nỉ bàn, băng cao su, đường lưới, vạch phụ, nút số diamond, và overlay hệ thống (xohaibang, babangcha).
-* `ball_renderer.dart`: Render bi thường, bi ghost, bi outline, bi đánh số, chấm điểm carom (measles), và đổ bóng 3D.
-* `trajectory_renderer.dart`: Render các đường đứt/liền nét, tính toán khoảng thời gian hoạt họa nối tiếp.
-* `annotation_renderer.dart`: Render nhãn chữ, cung góc, vạch số băng, và sơ đồ mini áp-phê (effet).
+Cấu trúc mô-đun mới trong `lib/rendering/scene/`:
+* `scene_viewport.dart`: Quản lý kích thước canvas, vùng chơi, và chuyển đổi tọa độ hai chiều giữa [TablePoint] và Canvas pixel [Offset].
+* `scene_render_model.dart`: Định nghĩa DTO bất biến và theme `SceneRenderTheme`.
+* `table_renderer.dart`: Render nỉ bàn, băng cao su, đường lưới, vạch phụ, nút số diamond, và overlay hệ thống.
+* `ball_renderer.dart`: Render bi thường, bi ghost, bi outline, bi đánh số, chấm điểm carom, và đổ bóng 3D.
+* `trajectory_renderer.dart`: Render đường đứt/liền nét, tính toán hoạt họa tiệm tiến.
+* `annotation_renderer.dart`: Render nhãn chữ, cung góc, và sơ đồ mini áp-phê.
 * `scene_painter.dart`: Facade `CustomPainter` phối hợp các sub-renderers.
 * `scene_renderer.dart`: Facade `StatelessWidget` bọc `CustomPaint` và `ScenePainter`.
-* `legacy/legacy_render_adapter.dart`: Chuyển đổi giữa domain [BilliardScene] hoặc đối tượng legacy diagram sang DTO `SceneRenderModel`.
+* `legacy/legacy_render_adapter.dart`: Chuyển đổi từ `BilliardScene` hoặc legacy diagram objects.
+* `legacy/legacy_playback_compatibility.dart`: Chứa metric khoảng cách 1:2 aspect ratio và tính toán thời gian cho playback legacy.
 
 ## Files changed
 
-* `lib/rendering/scene/scene_viewport.dart` [NEW]
-* `lib/rendering/scene/scene_render_model.dart` [NEW]
+* `analysis_options.yaml` [REVERT EXCLUSIONS]
+* `lib/rendering/scene/scene_viewport.dart` [MODIFY]
+* `lib/rendering/scene/scene_render_model.dart` [MODIFY]
 * `lib/rendering/scene/table_renderer.dart` [NEW]
 * `lib/rendering/scene/ball_renderer.dart` [NEW]
-* `lib/rendering/scene/trajectory_renderer.dart` [NEW]
+* `lib/rendering/scene/trajectory_renderer.dart` [MODIFY]
 * `lib/rendering/scene/annotation_renderer.dart` [NEW]
-* `lib/rendering/scene/scene_painter.dart` [NEW]
+* `lib/rendering/scene/scene_painter.dart` [MODIFY]
 * `lib/rendering/scene/scene_renderer.dart` [NEW]
-* `lib/rendering/scene/legacy/legacy_render_adapter.dart` [NEW]
+* `lib/rendering/scene/legacy/legacy_render_adapter.dart` [MODIFY]
+* `lib/rendering/scene/legacy/legacy_playback_compatibility.dart` [NEW]
 * `lib/widgets/billiard_diagram.dart` [MODIFY]
-* `test/scene_viewport_test.dart` [NEW]
-* `test/scene_render_model_test.dart` [NEW]
-* `test/scene_renderer_smoke_test.dart` [NEW]
+* `test/scene_viewport_test.dart` [MODIFY]
+* `test/scene_render_model_test.dart` [MODIFY]
+* `test/scene_renderer_smoke_test.dart` [MODIFY]
 * `test/architecture_test.dart` [MODIFY]
 * `docs/PHASE_STATUS.md` [MODIFY]
-* `docs/reports/PHASE_2_VERIFICATION_REPORT.md` [MODIFY]
-* `docs/reports/PHASE_3_MANUAL_VISUAL_CHECKLIST.md` [NEW]
-* `docs/reports/PHASE_3_VERIFICATION_REPORT.md` [NEW]
-
-## Table renderer
-
-Đã tách vào `lib/rendering/scene/table_renderer.dart`. Xử lý vải nỉ, gỗ biên, băng cao su, lưới, vạch phụ (minor ticks chia 10 đơn vị), điểm diamond, và số overlay cho DiagramSystem.
-
-## Ball renderer
-
-Đã tách vào `lib/rendering/scene/ball_renderer.dart`. Xử lý render bi đơn, bi sọc/nửa bi, bi đánh số, bóng mờ ghost khi lăn, bi nét đứt, họa tiết 5 chấm measles carom, và lớp gradient nổi 3D.
-
-## Trajectory renderer
-
-Đã tách vào `lib/rendering/scene/trajectory_renderer.dart`. Xử lý đường nét liền/đứt, đường hiển thị tiệm tiến theo tiến trình hoạt họa, màu role indicator.
-
-## Annotation renderer
-
-Đã tách vào `lib/rendering/scene/annotation_renderer.dart`. Xử lý văn bản nhãn, góc xoay, cung đo góc, vạch số băng, và sơ đồ mini effet áp-phê.
-
-## Scene renderer facade
-
-Đã tạo `ScenePainter` và `SceneRenderer` facade tại `lib/rendering/scene/scene_painter.dart` và `lib/rendering/scene/scene_renderer.dart`.
-
-## Viewport transform
-
-Lớp `SceneViewport` chịu trách nhiệm chuyển đổi hai chiều chuẩn xác:
-* `x_px = playfieldRect.left + u * playAreaWidth`
-* `y_px = playfieldRect.top  + v * playAreaHeight`
-* `u = (offset.dx - playfieldRect.left) / playAreaWidth`
-* `v = (offset.dy - playfieldRect.top)  / playAreaHeight`
-
-## Legacy compatibility adapter
-
-`LegacyRenderAdapter` đảm bảo chuyển đổi 100% không làm gãy API cũ của `BilliardDiagram` hay domain `BilliardScene`.
-
-## Animation compatibility boundary
-
-Giữ nguyên hành vi hoạt họa visual nối tiếp cũ của `BilliardPainter` thông qua `trajectory_renderer.dart`. KHÔNG thay đổi ngữ nghĩa hoạt họa thành physics simulation engine.
+* `docs/reports/PHASE_3_MANUAL_VISUAL_CHECKLIST.md` [MODIFY]
+* `docs/reports/PHASE_3_VERIFICATION_REPORT.md` [MODIFY]
 
 ## Database access audit
 
@@ -96,23 +77,23 @@ Giữ nguyên hành vi hoạt họa visual nối tiếp cũ của `BilliardPaint
 ## Tests
 
 Tất cả unit test & smoke test pass 100%:
-* `test/scene_viewport_test.dart` (Bi-directional coordinate mapping)
-* `test/scene_render_model_test.dart` (Degrees to radians conversion, hex color parsing)
-* `test/scene_renderer_smoke_test.dart` (Widget pumping and legacy adapter delegation)
+* `test/scene_viewport_test.dart` (Full table non-stretching & 8 view modes round-trip)
+* `test/scene_render_model_test.dart` (Legacy coordinate conversion & 1:2 playback metric)
+* `test/scene_renderer_smoke_test.dart` (Domain ghost & extra ball conversion + widget smoke tests)
 * `test/architecture_test.dart` (Domain pure Dart guard & rendering DB isolation guard)
-* Full suite regression: 60/60 test cases PASS.
+* Full suite regression: PASS.
 
 ## Analyzer
 
-`flutter analyze`: 0 errors.
+`flutter analyze`: Ran without errors (only legacy info/deprecation notices).
 
 ## Visual manual checklist
 
-Tạo `docs/reports/PHASE_3_MANUAL_VISUAL_CHECKLIST.md` ghi nhận đầy đủ 19 tiêu chí kiểm tra trực quan thủ công.
+Tạo `docs/reports/PHASE_3_MANUAL_VISUAL_CHECKLIST.md` ghi nhận `HUMAN_REQUIRED` cho kiểm tra mắt người.
 
 ## Known limitations
 
-* Chưa có golden test infrastructure tĩnh tự động so sánh pixel-by-pixel (đã thay bằng transform tests và widget smoke tests).
+* Chưa có golden test infrastructure tĩnh tự động so sánh pixel-by-pixel.
 
 ## Deferred to Phase 4
 
@@ -124,33 +105,38 @@ Tạo `docs/reports/PHASE_3_MANUAL_VISUAL_CHECKLIST.md` ghi nhận đầy đủ 
 
 ## Acceptance checklist
 
-* [x] Phase 2 đã DONE
-* [x] rendering package/module tồn tại tại `lib/rendering/scene/`
-* [x] Table renderer được tách
-* [x] Ball renderer được tách
-* [x] Trajectory renderer được tách
-* [x] Annotation renderer được tách
-* [x] Scene renderer facade tồn tại
-* [x] TablePoint → Canvas transform test pass
-* [x] Domain degrees → renderer radians test pass
-* [x] Domain color string → Flutter Color test pass
-* [x] Renderer không access DB
-* [x] Painter không có repository/business rules mới
-* [x] Domain vẫn Pure Dart
-* [x] Existing BilliardDiagram API không bị phá diện rộng
-* [x] Existing visual behavior chính được bảo toàn về code path
-* [x] Existing animation logic không bị gọi là physics
-* [x] Phase 4 editor architecture chưa được implement
-* [x] Phase 5 TeachingSimulation chưa được implement
-* [x] Full regression tests pass
-* [x] Manual visual checklist được tạo
-* [x] Human-only visual checks được đánh dấu trung thực
-* [x] PHASE_3_VERIFICATION_REPORT.md hoàn thành
+- [x] Phase 2 đã DONE
+- [x] rendering package/module tồn tại tại `lib/rendering/scene/`
+- [x] Table renderer được tách
+- [x] Ball renderer được tách
+- [x] Trajectory renderer được tách
+- [x] Annotation renderer được tách
+- [x] Scene renderer facade tồn tại
+- [x] Legacy coordinate conversion `Ball.at(2,6) -> TablePoint(0.5, 0.75)` PASS
+- [x] `TablePoint` $\leftrightarrow$ `Canvas` transform non-stretching tests PASS
+- [x] Inverse viewport `offsetToTablePoint` round-trip PASS (8 view modes)
+- [x] Legacy 1:2 playback metric equality test PASS
+- [x] Domain ghost ball conversion PASS
+- [x] Domain extra numbered ball conversion PASS
+- [x] Domain degrees $\rightarrow$ renderer radians test PASS
+- [x] Domain color string $\rightarrow$ Flutter Color test PASS
+- [x] Renderer không access DB
+- [x] Painter không có repository/business rules mới
+- [x] Domain vẫn Pure Dart
+- [x] Existing `BilliardDiagram` API không bị phá diện rộng
+- [x] Phase 4 editor architecture chưa được implement
+- [x] Phase 5 TeachingSimulation chưa được implement
+- [x] Full regression tests pass
+- [x] [`PHASE_3_MANUAL_VISUAL_CHECKLIST.md`](file:///c:/Lap%20trinh%20Android/Libre2026/Billiardlearning/docs/reports/PHASE_3_MANUAL_VISUAL_CHECKLIST.md) hoàn thành
+- [x] [`PHASE_3_VERIFICATION_REPORT.md`](file:///c:/Lap%20trinh%20Android/Libre2026/Billiardlearning/docs/reports/PHASE_3_VERIFICATION_REPORT.md) hoàn thành
 
 ## Recommended phase status
 
 `Phase 3 = REVIEW`
 
+AUTOMATED VERIFICATION = PASS  
+HUMAN VISUAL VERIFICATION = PENDING
+
 ## Git synchronization status
 
-Sẽ được xác nhận sau khi commit & push.
+Pending push to origin main.

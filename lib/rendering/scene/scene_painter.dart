@@ -9,6 +9,7 @@ import 'table_renderer.dart';
 import 'ball_renderer.dart';
 import 'trajectory_renderer.dart';
 import 'annotation_renderer.dart';
+import 'legacy/legacy_playback_compatibility.dart';
 
 /// Facade [CustomPainter] coordinating table, ball, trajectory, and annotation renderers.
 class ScenePainter extends CustomPainter {
@@ -109,10 +110,11 @@ class ScenePainter extends CustomPainter {
         for (int i = 0; i < model.trajectories.length; i++) {
           final path = model.trajectories[i];
           if (path.points.isNotEmpty) {
-            final double du = ball.position.u - path.points.first.u;
-            final double dv = ball.position.v - path.points.first.v;
-            final double dist = math.sqrt(du * du + dv * dv);
-            if (dist < 0.05) {
+            final double dist = LegacyPlaybackCompatibility.distance(
+              ball.position,
+              path.points.first,
+            );
+            if (dist < 0.1) {
               // Draw ghost shadow at initial position
               ballRenderer.drawGhostShadow(
                 canvas,

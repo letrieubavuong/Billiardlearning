@@ -12,12 +12,19 @@ import '../../../widgets/billiard_diagram.dart' as legacy;
 class LegacyRenderAdapter {
   const LegacyRenderAdapter();
 
+  /// Converts legacy relative Offset(dx, dy) where dx = xDiamond/4 and dy = yDiamond/4
+  /// to canonical TablePoint(u, v) where u = xDiamond/4 and v = yDiamond/8.
+  static TablePoint legacyRelativeToTablePoint(Offset p) {
+    return TablePoint(p.dx, p.dy / 2.0);
+  }
+
   /// Converts a domain [BilliardScene] into a modular [SceneRenderModel].
   static SceneRenderModel sceneToRenderModel({
     required BilliardScene scene,
     double animationProgress = 1.0,
     Map<String, Color>? themeIndicatorColors,
     Map<String, dynamic>? effetData,
+    bool isVertical = true,
   }) {
     final List<BallRenderItem> balls = scene.balls.map((b) {
       Color ballColor;
@@ -37,13 +44,27 @@ class LegacyRenderAdapter {
             break;
         }
       }
+
+      final bool isGhost = b.ballType == 'ghost' || b.legacyType == 1;
+
+      int typeIndex;
+      if (b.legacyType != null) {
+        typeIndex = b.legacyType!;
+      } else if (b.ballType == 'extra' &&
+          b.label != null &&
+          b.label!.isNotEmpty) {
+        typeIndex = 2; // numbered ball
+      } else {
+        typeIndex = 0;
+      }
+
       return BallRenderItem(
         position: b.position,
         color: ballColor,
-        opacity: 1.0,
-        isGhost: false,
+        opacity: isGhost ? 0.5 : 1.0,
+        isGhost: isGhost,
         isOutline: false,
-        ballTypeIndex: b.legacyType ?? 0,
+        ballTypeIndex: typeIndex,
         rotationInRadians: degreesToRadians(b.rotation ?? 0.0),
         text: b.label,
       );
@@ -74,6 +95,9 @@ class LegacyRenderAdapter {
       viewIndex.clamp(0, SceneViewMode.values.length - 1),
     );
 
+    // Derive hasBottomRail: true for full (0) and halfWidth (4), false otherwise
+    final bool hasBottomRail = (viewIndex == 0 || viewIndex == 4);
+
     final int sysIndex = scene.presentationConfig?.legacySystemIndex ?? 0;
 
     EffetRenderData? effet;
@@ -95,8 +119,8 @@ class LegacyRenderAdapter {
       annotations: annotations,
       viewMode: viewMode,
       diagramSystemIndex: sysIndex,
-      isVertical: true,
-      hasBottomRail: true,
+      isVertical: isVertical,
+      hasBottomRail: hasBottomRail,
       animationProgress: animationProgress,
       theme: SceneRenderTheme(
         indicatorColors: themeIndicatorColors ?? const {},
@@ -121,7 +145,7 @@ class LegacyRenderAdapter {
   }) {
     final ballItems = balls.map((b) {
       return BallRenderItem(
-        position: TablePoint(b.position.dx, b.position.dy),
+        position: legacyRelativeToTablePoint(b.position),
         color: b.color,
         opacity: b.opacity,
         isGhost: b.isGhost,
@@ -134,7 +158,7 @@ class LegacyRenderAdapter {
 
     final trajectoryItems = (paths ?? []).map((p) {
       return TrajectoryRenderItem(
-        points: p.points.map((pt) => TablePoint(pt.dx, pt.dy)).toList(),
+        points: p.points.map((pt) => legacyRelativeToTablePoint(pt)).toList(),
         color: p.color,
         opacity: p.opacity,
         isDashed: p.isDashed,
@@ -144,7 +168,7 @@ class LegacyRenderAdapter {
 
     final annotationItems = (labels ?? []).map((l) {
       return AnnotationRenderItem(
-        position: TablePoint(l.position.dx, l.position.dy),
+        position: legacyRelativeToTablePoint(l.position),
         text: l.text,
         color: l.color,
         fontSize: l.fontSize,
@@ -155,9 +179,9 @@ class LegacyRenderAdapter {
 
     final angleItems = (angles ?? []).map((a) {
       return AngleRenderItem(
-        a: TablePoint(a.a.dx, a.a.dy),
-        b: TablePoint(a.b.dx, a.b.dy),
-        c: TablePoint(a.c.dx, a.c.dy),
+        a: legacyRelativeToTablePoint(a.a),
+        b: legacyRelativeToTablePoint(a.b),
+        c: legacyRelativeToTablePoint(a.c),
         radius: a.radius,
         color: a.color,
         label: a.label,
