@@ -122,14 +122,24 @@ The legacy domain model in `lib/models/note_model.dart` revolves around:
 
 ---
 
-## 10. Legacy ShotDetail
+## 10. Legacy ShotDetail Terminology & Current Domain Gaps
 
-- **`ShotDetail` payload in `lib/widgets/shot_details.dart` / JSON:**
+- **JSON Persisted Field vs Flutter Widget Property:**
+  - `forceImage`: JSON persisted string key inside diagram/effet payload (e.g., `"forceImage": "assets/images/Luc 2.png"`).
+  - `forceImagePath`: Property name in `ImpactIndicator` Flutter widget constructor (`lib/widgets/shot_details.dart`).
+- **`ShotDetail` Payload Fields:**
   - `thickness`: `double` (fraction of 8 parts, e.g. `4/8` = half ball)
   - `effet`: `Offset(x, y)` (tip contact point offset from `-1.0` to `1.0`)
   - `cueAngle`: `double` (cue elevation in degrees)
-  - `forceImagePath`: `String?` (asset path string e.g. `"assets/images/Luc 1.png"` to `"assets/images/Luc 4.png"`)
-- **Domain Gap:** Legacy `forceImagePath` represents discrete visual force preset images, NOT physical cue speed in $m/s$. This domain gap will be resolved in Phase 0 / Phase 15.
+  - `forceImage`: `String?` (asset path string e.g. `"assets/images/Luc 1.png"` to `"assets/images/Luc 4.png"`)
+- **Current `CueInstruction` Production Domain Fields (`lib/domain/entities/entities.dart`):**
+  - `power`: `double` (range 0.0 to 1.0)
+  - `direction`: `Angle`
+  - `tipOffset`: `Vec2`
+- **Deferred Domain Gaps:**
+  - Mapping from `forceImage` asset preset to numeric `power`: `DEFERRED DOMAIN GAP`.
+  - `cueAngle` (cue elevation): `DEFERRED DOMAIN GAP` (deferred to Phase 0 / Phase 15).
+  - `thickness` (contact thickness metadata): `DEFERRED DOMAIN GAP`.
 
 ---
 

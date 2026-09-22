@@ -69,12 +69,24 @@ Legacy `NoteBlock` instances (`type`: `BlockType`, `content`: `String`) embedded
 
 ---
 
-## 3. Legacy Diagram JSON → `BilliardScene` Mapping
+## 3. Legacy Diagram JSON → `BilliardScene` Pipeline Boundary
 
-Legacy diagram JSON documents (produced by `diagram_builder_page.dart` and encoded via `DiagramDocumentCodec`) are mapped to the unified `BilliardScene` entity:
+Legacy diagram JSON documents (produced by `diagram_builder_page.dart` and encoded via `DiagramDocumentCodec`) pass through a clear architecture pipeline:
 
+```text
+Legacy Diagram JSON
+        ↓
+PLANNED LegacySceneImporter (Phase 4 / Phase 7)
+        ↓
+BilliardScene (Pure Dart Domain Entity)
+        ↓
+SceneMapper (Data Layer Mapper in lib/data/mappers/scene_mapper.dart)
+        ↓
+SQLite Row Map (vnext_scenes Table)
+```
+
+### Real Legacy Diagram JSON Payload Keys:
 ```json
-// Real Legacy Diagram JSON Structure
 {
   "schemaVersion": 1,
   "system": 1,
@@ -93,22 +105,20 @@ Legacy diagram JSON documents (produced by `diagram_builder_page.dart` and encod
   "cushionNumbers": [],
   "ghosts": [],
   "extraBalls": [],
-  "effet": {"thickness": 0.5, "effet": [0.0, 0.5], "forceImagePath": "assets/images/Luc 2.png", "cueAngle": 15.0}
+  "effet": {"thickness": 0.5, "effet": [0.0, 0.5], "forceImage": "assets/images/Luc 2.png", "cueAngle": 15.0}
 }
 ```
-
-Mapped to **`BilliardScene` Domain Entity**:
 
 | Real Legacy JSON Key | Mapped `BilliardScene` Property | Domain Type | Mapping Transformation |
 | :--- | :--- | :--- | :--- |
 | `schemaVersion` | `version` | `int` | Retained for schema migration tracking |
-| `white`, `yellow`, `red`, `extraBalls` | `balls` | `List<BallPlacement>` | Legacy diamond coordinates `(x,y)` mapped to normalized `TablePoint(u,v)` where $u=x/4, v=y/8$ |
-| `paths.white`, `yellow`, `red`, `free` | `trajectories` | `List<Trajectory>` | Polyline points mapped to `TablePoint(u,v)` sequences |
-| `labels`, `cushionNumbers` | `annotations` | `List<Annotation>` | Position mapped to `TablePoint(u,v)` + `text` string |
-| `angles` | `annotations` | `List<Annotation>` | Encoded as `AnnotationType.angle` |
-| `ghosts` | `balls` | `List<BallPlacement>` | Mapped with `isGhost: true` flag |
+| `white`, `yellow`, `red`, `extraBalls` | `balls` | `List<BallPosition>` | Legacy diamond coordinates `(x,y)` mapped to normalized `TablePoint(u,v)` where $u=x/4, v=y/8$ |
+| `paths.white`, `yellow`, `red`, `free` | `trajectories` | `List<TrajectoryLine>` | Polyline points mapped to `TablePoint(u,v)` sequences |
+| `labels`, `cushionNumbers` | `annotations` | `List<SceneAnnotation>` | Position mapped to `TablePoint(u,v)` + `text` string |
+| `angles` | `annotations` | `List<SceneAnnotation>` | Encoded as `SceneAnnotation` with angle metadata |
+| `ghosts` | `balls` | `List<BallPosition>` | Mapped with `ballType: "ghost"` flag |
 | `system` (`DiagramSystem` index) | `tableConfig` | `TableConfig` | Active system overlay ID stored in configuration |
-| `effet` | `cueInstruction` | `CueInstruction?` | Tip offset $(dx, dy)$, force %, elevation angle |
+| `effet` | `cueInstruction` | `CueInstruction?` | Tip offset $(dx, dy)$, power percentage |
 
 ---
 
@@ -130,25 +140,28 @@ $$\text{ScreenCoordinate } (x_{screen}, y_{screen}) \text{ in pixels} \quad \tex
 
 ---
 
-## 5. `ShotDetail` → `CueInstruction` Mapping
+## 5. `ShotDetail` → `CueInstruction` Mapping & Current Domain Gaps
 
-Legacy `ShotDetail` payload structure (from `lib/widgets/shot_details.dart`):
+Legacy `ShotDetail` JSON payload vs Current `CueInstruction` Production Domain (`lib/domain/entities/entities.dart`):
 
-| Legacy Field | Real Data Representation | `CueInstruction` Domain Field | Unit / Target Domain Range |
+| Legacy JSON Field | Legacy Data Type / Example | Current `CueInstruction` Field (`entities.dart`) | Current Domain Status |
 | :--- | :--- | :--- | :--- |
-| `thickness` | `double` (fraction of 8 parts, e.g. `4/8`) | Teaching contact metadata | Fraction / ratio $[0.0, 1.0]$ |
-| `effet[0]` | `double` (tip offset X) | `tipOffset.x` | Normalized offset $[-1.0, 1.0]$ |
-| `effet[1]` | `double` (tip offset Y) | `tipOffset.y` | Normalized offset $[-1.0, 1.0]$ |
-| `cueAngle` | `double` (cue elevation in degrees) | `cueElevation` | Radians / `Angle` Value Object |
-| `forceImagePath` | `String?` asset path (e.g. `"assets/images/Luc 2.png"`) | `cueSpeed` / force preset | Legacy force preset image asset |
+| `effet[0]` | `double` (tip offset X -1.0 to 1.0) | `tipOffset.x` | **Mapped in Current Domain** |
+| `effet[1]` | `double` (tip offset Y -1.0 to 1.0) | `tipOffset.y` | **Mapped in Current Domain** |
+| `forceImage` | JSON key (e.g. `"assets/images/Luc 2.png"`) | `power: double` (range 0.0 to 1.0) | **DEFERRED DOMAIN GAP:** Numeric power mapping from asset path |
+| `cueAngle` | `double` (cue elevation in degrees) | *None* (No cue elevation field in `CueInstruction`) | **DEFERRED DOMAIN GAP:** Deferred to Phase 0 / Phase 15 |
+| `thickness` | `double` (fraction of 8 parts, e.g. `4/8`) | *None* (No contact thickness field) | **DEFERRED DOMAIN GAP:** Deferred to Phase 0 / Phase 6 |
 
-> **DEFERRED DOMAIN GAP:** Legacy `forceImagePath` represents discrete asset image presets (`"Luc 1.png"` to `"Luc 4.png"`), NOT a physical velocity in $m/s$. `CueInstruction` in Phase 1 domain contains `forcePercentage`. Complete resolution of this gap is deferred to Phase 0 / Phase 15.
+> **JSON Persisted Field vs Flutter Widget Property:**
+> - `forceImage`: JSON key stored inside legacy diagram/effet payloads (e.g. `"forceImage": "assets/images/Luc 2.png"`).
+> - `forceImagePath`: Constructor property name in `ImpactIndicator` Flutter widget (`lib/widgets/shot_details.dart`).
+> - **Constraint:** `forceImage` asset presets MUST NOT be converted directly to physical cue speeds ($m/s$) in Phase -1.
 
 ---
 
 ## 6. Number System Tier Distinction & Mapping
 
-- **Legacy Architecture:** Monolithic code conflating visual overlays, static article texts, and hardcoded formula text.
+- **Legacy Architecture:** Conflates visual presets (`DiagramSystem` enum), article notes (`SystemDefaultNotes.getBoSoNotes()`), and hardcoded math logic into a single monolithic implementation.
 - **Target vNext Architecture:** Explicitly separates Number Systems into three distinct tiers:
   1. **Visual System Overlay / Preset (`TableConfig`):** Visual diamond labels and rail overlays drawn on `BilliardScene` (`DiagramSystem` index: `standard`, `diamond`, `short3Cushion`, `shortLongShort`, `xohaibang`, `babangcha`).
   2. **Teaching Lesson Content (`Lesson` Entity):** Pedagogical article text, images, and diagrams explaining how to play the system.

@@ -42,5 +42,8 @@
 - `A10_DATA_MEDIA.md`
 - `A11_QA_ARCHITECTURE_TEST.md`
 
+## Reports
+- `reports/PHASE_-1_VERIFICATION_REPORT.md`
+
 ## Phases
 Bắt đầu từ `PHASE_-1_LEGACY_AUDIT_AND_SPEC_RESET.md`, sau đó theo `00_ROADMAP.md`.
