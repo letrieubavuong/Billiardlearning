@@ -88,7 +88,7 @@ Tất cả unit test & smoke test pass 100%:
 
 ## Analyzer
 
-`flutter analyze`: Ran cleanly or with expected legacy pre-existing infos/warnings only. No exclusions block in `analysis_options.yaml`.
+`flutter analyze` (Exit code: 1, 0 errors, 13 warnings, 298 infos/deprecations in pre-existing legacy files). No exclusions block in `analysis_options.yaml`.
 
 ## Visual manual checklist
 
