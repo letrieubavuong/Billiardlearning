@@ -30,21 +30,45 @@ void main() {
       expect(norm.y, closeTo(0.8, 0.0001));
       expect(norm.length, closeTo(1.0, 0.0001));
     });
+
+    test('zero vector normalization handles division by zero safely', () {
+      final normZero = Vec2.zero.normalized();
+      expect(normZero, equals(Vec2.zero));
+      expect(normZero.length, 0.0);
+    });
+
+    test('equality and hash code', () {
+      const v1 = Vec2(2.5, -1.0);
+      const v2 = Vec2(2.5, -1.0);
+      const v3 = Vec2(2.5, 1.0);
+
+      expect(v1, equals(v2));
+      expect(v1.hashCode, equals(v2.hashCode));
+      expect(v1, isNot(equals(v3)));
+    });
   });
 
   group('TablePoint and WorldPoint', () {
-    test('TablePoint validates normalized range [0,1]x[0,1]', () {
-      const p1 = TablePoint(0.5, 0.5);
-      expect(p1.isWithinTable, isTrue);
+    test('TablePoint validates normalized range [0,1]x[0,1] boundaries', () {
+      expect(const TablePoint(0.0, 0.0).isWithinTable, isTrue);
+      expect(const TablePoint(1.0, 1.0).isWithinTable, isTrue);
+      expect(const TablePoint(0.5, 0.5).isWithinTable, isTrue);
 
-      const p2 = TablePoint(1.2, 0.5);
-      expect(p2.isWithinTable, isFalse);
+      expect(const TablePoint(-0.1, 0.5).isWithinTable, isFalse);
+      expect(const TablePoint(1.1, 0.5).isWithinTable, isFalse);
+      expect(const TablePoint(0.5, -0.1).isWithinTable, isFalse);
+      expect(const TablePoint(0.5, 1.01).isWithinTable, isFalse);
     });
 
-    test('WorldPoint equality and format', () {
+    test('WorldPoint equality, hashCode and toString semantics', () {
       const wp1 = WorldPoint(1.42, 2.84);
       const wp2 = WorldPoint(1.42, 2.84);
-      expect(wp1, wp2);
+      const wp3 = WorldPoint(2.00, 1.00);
+
+      expect(wp1, equals(wp2));
+      expect(wp1.hashCode, equals(wp2.hashCode));
+      expect(wp1, isNot(equals(wp3)));
+      expect(wp1.toString(), 'WorldPoint(x: 1.42, y: 2.84)');
     });
   });
 
@@ -55,18 +79,44 @@ void main() {
       expect(a.degrees, closeTo(180.0, 0.0001));
     });
 
-    test('normalizes angles', () {
-      final a = Angle.fromDegrees(450.0).normalized();
-      expect(a.degrees, closeTo(90.0, 0.0001));
+    test('normalizes positive overflow and negative angles', () {
+      final overflow = Angle.fromDegrees(450.0).normalized();
+      expect(overflow.degrees, closeTo(90.0, 0.0001));
+
+      final negative = Angle.fromDegrees(-90.0).normalized();
+      expect(negative.degrees, closeTo(270.0, 0.0001));
     });
   });
 
   group('StableId', () {
-    test('generates unique stable string IDs', () {
-      final id1 = StableId.generate();
-      final id2 = StableId.generate();
-      expect(id1, isNotEmpty);
-      expect(id1, isNot(equals(id2)));
+    test('generates valid UUID v4 formatted strings', () {
+      final uuidRegex = RegExp(
+        r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
+      );
+
+      final id = StableId.generate();
+      expect(id, isNotEmpty);
+      expect(
+        uuidRegex.hasMatch(id),
+        isTrue,
+        reason: 'Generated ID $id must match standard UUID v4 format',
+      );
+      expect(
+        id.startsWith('id_'),
+        isFalse,
+        reason: 'Legacy timestamp format id_ must not be used',
+      );
+    });
+
+    test('uniqueness sample test generating 1000 UUIDs', () {
+      const sampleCount = 1000;
+      final ids = <String>{};
+
+      for (var i = 0; i < sampleCount; i++) {
+        ids.add(StableId.generate());
+      }
+
+      expect(ids.length, equals(sampleCount));
     });
   });
 }

@@ -1,6 +1,7 @@
 // Pure Dart Value Objects for Billiardlearning Domain Foundation
 
 import 'dart:math' as math;
+import 'package:uuid/uuid.dart';
 
 class Vec2 {
   final double x;
@@ -118,11 +119,10 @@ class StableId {
 
   const StableId(this.value);
 
-  static String generate() {
-    final now = DateTime.now().microsecondsSinceEpoch;
-    final rand = math.Random().nextInt(100000);
-    return 'id_${now}_$rand';
-  }
+  static const _uuid = Uuid();
+
+  /// Generates a standard UUID v4 string identifier.
+  static String generate() => _uuid.v4();
 
   @override
   bool operator ==(Object other) =>

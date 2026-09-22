@@ -151,29 +151,46 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  test('domain layer does not import flutter or sqflite', () {
+  test('domain layer does not import flutter, sqflite or dart:ui', () {
     final domainDir = Directory('lib/domain');
     expect(domainDir.existsSync(), isTrue);
+
+    final forbiddenImports = [
+      'package:flutter/',
+      'package:sqflite/',
+      'package:sqflite_common_ffi/',
+      'dart:ui',
+    ];
+
+    final forbiddenSymbols = [
+      'Color',
+      'Offset',
+      'Canvas',
+      'Paint',
+      'Widget',
+      'BuildContext',
+    ];
 
     final files = domainDir.listSync(recursive: true).whereType<File>();
     for (final file in files) {
       if (file.path.endsWith('.dart')) {
         final content = file.readAsStringSync();
-        expect(
-          content.contains("import 'package:flutter/"),
-          isFalse,
-          reason: '${file.path} must not import Flutter',
-        );
-        expect(
-          content.contains("import 'package:sqflite/"),
-          isFalse,
-          reason: '${file.path} must not import sqflite',
-        );
-        expect(
-          content.contains("import 'package:sqflite_common_ffi/"),
-          isFalse,
-          reason: '${file.path} must not import sqflite_common_ffi',
-        );
+        for (final importStr in forbiddenImports) {
+          expect(
+            content.contains("import '$importStr"),
+            isFalse,
+            reason: '${file.path} must not import $importStr',
+          );
+        }
+        for (final symbol in forbiddenSymbols) {
+          // Verify forbidden symbols are not used as types or constructors
+          final regex = RegExp('\\b$symbol\\b');
+          expect(
+            regex.hasMatch(content),
+            isFalse,
+            reason: '${file.path} must not use Flutter UI symbol $symbol',
+          );
+        }
       }
     }
   });
