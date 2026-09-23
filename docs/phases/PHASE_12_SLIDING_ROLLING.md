@@ -1,23 +1,22 @@
-# PHASE 11 - BALL-BALL COLLISION
+# PHASE 12 - SLIDING + ROLLING
 
 ## Mục tiêu
-Phát hiện và xử lý va chạm hai bi.
+Mô hình sliding -> rolling -> stop.
 
 ## Spec bắt buộc đọc
 - `docs/specs/08_PHYSICS_ENGINE.md`
 
 ## Deliverables
-1. Collision detection
-2. Impulse response
-3. Overlap correction
-4. Tests
+1. Motion state transitions
+2. Cloth coefficients
+3. Tests
 
 ## Không làm trong phase này
-- Chưa cushion spin nâng cao
+- Chưa cue calibration
 
 ## Acceptance Criteria
-- [ ] Head-on/angled tests pass
-- [ ] Không tạo năng lượng vô lý ngoài tolerance
+- [ ] Transitions deterministic
+- [ ] No oscillating state bug
 
 ## Completion report
 Báo Summary, Files changed, Migration impact, Tests, Acceptance PASS/FAIL, Manual test steps, Known limitations.

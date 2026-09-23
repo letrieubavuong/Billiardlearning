@@ -1,4 +1,4 @@
-# PHASE 22 - PERFORMANCE + ANDROID RELEASE
+# PHASE 21 - PERFORMANCE + ANDROID RELEASE
 
 ## Mục tiêu
 Tối ưu, regression, Android release readiness.

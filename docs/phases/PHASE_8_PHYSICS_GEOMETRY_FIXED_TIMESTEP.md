@@ -1,23 +1,23 @@
-# PHASE 15 - CUE STRIKE MODEL
+# PHASE 8 - PHYSICS GEOMETRY + FIXED TIME STEP
 
 ## Mục tiêu
-Map cue input sang linear/angular velocity.
+Nền móng pure Dart cho simulation world và fixed timestep.
 
 ## Spec bắt buộc đọc
 - `docs/specs/08_PHYSICS_ENGINE.md`
 
 ## Deliverables
-1. CueInput
-2. Strike model
-3. Power/tip/elevation mapping
-4. Tests
+1. Physics Vec/math
+2. SimulationState
+3. Fixed timestep loop
+4. Determinism tests
 
 ## Không làm trong phase này
-- Không dùng forceImage làm physics input
+- Chưa collision phức tạp
 
 ## Acceptance Criteria
-- [ ] power/tip normalized
-- [ ] Known symmetric inputs cho symmetric outputs
+- [ ] Không import Flutter
+- [ ] Deterministic tests pass
 
 ## Completion report
 Báo Summary, Files changed, Migration impact, Tests, Acceptance PASS/FAIL, Manual test steps, Known limitations.

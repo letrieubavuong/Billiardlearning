@@ -5,7 +5,7 @@
 Xây dựng ứng dụng Flutter ưu tiên Android cho phép:
 - tạo và tổ chức bài học billiard;
 - dựng và lưu thế bi;
-- chụp bàn thật và dựng lại thế bi trên app;
+- dựng và lưu thế bi (Manual Scene Editor là workflow chính thức);
 - vẽ đường ngắm, đường bi, điểm chạm, băng, diamond và annotation;
 - chạy Teaching Animation theo đường giáo viên dựng;
 - chạy Physics Simulation độc lập;
@@ -22,14 +22,14 @@ Xây dựng ứng dụng Flutter ưu tiên Android cho phép:
 - Pure Dart cho Domain, Geometry, Teaching Core, Physics Core.
 - SQLite local-first; giai đoạn migration có thể tiếp tục dùng `sqflite`.
 - Media lưu file; DB giữ metadata/reference.
-- Camera/vision có thể dùng Flutter plugin hoặc native bridge nếu cần.
+- Camera/vision: OUT OF ACTIVE SCOPE (không thuộc active roadmap; các DTO/interface cũ giữ nguyên độ tương thích).
 
 ## 3. Entity trung tâm
 
 `BilliardScene` là entity trung tâm kết nối:
 - Lesson
-- Scene Editor
-- Camera Capture
+- Scene Editor (PRIMARY)
+- Camera Capture (OUT OF ACTIVE SCOPE - giữ DTO compatibility)
 - Teaching Simulation
 - Physics Simulation
 - Technique
@@ -79,12 +79,13 @@ Phải data-driven, có:
 - examples;
 - scene references.
 
-## 7. Camera Capture
+## 7. Camera / Computer Vision Decision
 
-Pipeline chuẩn:
-`Capture -> Table Detection -> Corners -> Homography -> Ball Detection -> Confidence -> Scene Reconstruction -> Manual Correction -> BilliardScene`
+Camera capture, table detection, perspective correction, ball detection và automatic scene reconstruction nằm ngoài active product scope hiện tại.
 
-Camera không tạo loại lesson riêng.
+Manual Scene Editor là đường soạn thảo Scene chuẩn chính thức (PRIMARY).
+Import JSON/package được hỗ trợ sau.
+Camera reconstruction = OUT OF ACTIVE SCOPE.
 
 ## 8. Storage
 

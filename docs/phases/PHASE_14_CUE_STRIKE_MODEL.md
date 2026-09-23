@@ -1,22 +1,23 @@
-# PHASE 12 - CUSHION COLLISION
+# PHASE 14 - CUE STRIKE MODEL
 
 ## Mục tiêu
-Va chạm bi-băng v1 với geometry/profile.
+Map cue input sang linear/angular velocity.
 
 ## Spec bắt buộc đọc
 - `docs/specs/08_PHYSICS_ENGINE.md`
 
 ## Deliverables
-1. Cushion boundaries/normals
-2. Restitution/friction v1
-3. Tests
+1. CueInput
+2. Strike model
+3. Power/tip/elevation mapping
+4. Tests
 
 ## Không làm trong phase này
-- Chưa calibration đầy đủ
+- Không dùng forceImage làm physics input
 
 ## Acceptance Criteria
-- [ ] Incidence/reflection baseline pass
-- [ ] Không tunnel qua cushion trong test ranges
+- [ ] power/tip normalized
+- [ ] Known symmetric inputs cho symmetric outputs
 
 ## Completion report
 Báo Summary, Files changed, Migration impact, Tests, Acceptance PASS/FAIL, Manual test steps, Known limitations.

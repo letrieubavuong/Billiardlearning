@@ -1,4 +1,4 @@
-# PHASE 18 - TECHNIQUE LIBRARY
+# PHASE 17 - TECHNIQUE LIBRARY
 
 ## Mục tiêu
 Technique entity/library đúng domain.

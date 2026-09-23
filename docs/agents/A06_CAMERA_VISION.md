@@ -1,6 +1,9 @@
-# A06 - Camera Vision Agent
+# A06 - Camera Vision Agent (INACTIVE / OUT OF ACTIVE SCOPE)
 
-Sở hữu pipeline camera:
+> [!IMPORTANT]
+> **Roadmap Decision**: Camera development đã bị loại khỏi active roadmap. Agent này tạm thời không hoạt động trong các phase phát triển hiện tại.
+
+Sở hữu pipeline camera (Historical / Future extension):
 - capture
 - table/corner detection
 - homography
@@ -8,5 +11,4 @@ Sở hữu pipeline camera:
 - confidence
 - scene reconstruction DTO/adapter
 
-Output cuối phải map về BilliardScene candidate. Manual correction là workflow chính thức.
-Camera không ghi trực tiếp database entity và không tạo loại CameraLesson riêng.
+Manual Scene Editor = PRIMARY. Camera reconstruction = OUT OF ACTIVE SCOPE.

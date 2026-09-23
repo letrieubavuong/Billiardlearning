@@ -1,5 +1,28 @@
 # ROADMAP TỔNG THỂ - FLUTTER v2
 
+## Camera / Computer Vision Decision
+
+Camera capture, table detection, perspective correction,
+ball detection and automatic scene reconstruction are
+outside the current active product scope.
+
+Manual Scene Editor is the canonical scene-authoring path.
+
+Camera support may be reconsidered in a future roadmap,
+but no active phase depends on it.
+
+## Scene Creation & Editing Authoring Workflow
+
+```text
+Scene creation/editing:
+Manual Scene Editor = PRIMARY
+
+Import:
+JSON/package = supported later
+
+Camera reconstruction = OUT OF ACTIVE SCOPE
+```
+
 ## Mốc A - Cứu repo cũ và dựng nền móng
 
 ### Phase -1 - Legacy Audit & Specification Reset
@@ -31,69 +54,52 @@ Course/Chapter/Lesson/Section/Block, CRUD, autosave, preview.
 ### Phase 7 - Scene Sharing + Versioning
 Shared scene, clone-on-edit, version history, soft delete/restore.
 
-## Mốc C - Camera Capture
+## Mốc C - Physics Core
 
-### Phase 8A - Camera Infrastructure
-Permissions, capture pipeline, image lifecycle.
-
-### Phase 8B - Table Detection
-Detect playfield/corners và manual corner correction.
-
-### Phase 8C - Perspective Transform
-Homography/perspective correction và mapping về table coordinate.
-
-### Phase 8D - Ball Detection
-Nhận diện bi carom đỏ/trắng/vàng + confidence.
-
-### Phase 8E - Scene Reconstruction
-DetectionResult -> BilliardScene + manual correction + save.
-
-## Mốc D - Physics Core
-
-### Phase 9 - Physics Geometry + Fixed Time Step
+### Phase 8 - Physics Geometry + Fixed Time Step
 Pure Dart vector/math/time-step nền móng.
 
-### Phase 10 - Ball Motion + Friction
+### Phase 9 - Ball Motion + Friction
 Motion cơ bản, stop threshold, friction model v1.
 
-### Phase 11 - Ball-Ball Collision
+### Phase 10 - Ball-Ball Collision
 Detection + response + test cases.
 
-### Phase 12 - Cushion Collision
+### Phase 11 - Cushion Collision
 Cushion geometry, restitution/friction v1.
 
-### Phase 13 - Sliding + Rolling
+### Phase 12 - Sliding + Rolling
 State transitions và energy/spin coupling cơ bản.
 
-### Phase 14 - Spin Engine
+### Phase 13 - Spin Engine
 Top/bottom/side spin và decay.
 
-### Phase 15 - Cue Strike Model
+### Phase 14 - Cue Strike Model
 Cue input -> linear/angular velocity.
 
-### Phase 16 - Physics Calibration
+### Phase 15 - Physics Calibration
 Table profile + experimental dataset + error metrics.
 
-## Mốc E - Nội dung nâng cao
+## Mốc D - Nội dung nâng cao
 
-### Phase 17 - Number System Engine
+### Phase 16 - Number System Engine
 Variables/formulas/mappings/corrections/examples data-driven.
 
-### Phase 18 - Technique Library
+### Phase 17 - Technique Library
 Technique entity, tags, difficulty, scene references.
 
-### Phase 19 - Practice Engine
+### Phase 18 - Practice Engine
 Interactive task, reference solution, comparison/evaluation.
 
-## Mốc F - Dữ liệu và release
+## Mốc E - Dữ liệu và release
 
-### Phase 20 - Media + Package Import/Export
+### Phase 19 - Media + Package Import/Export
 MediaAsset + package manifest + content dependencies.
 
-### Phase 21 - Backup + Restore
+### Phase 20 - Backup + Restore
 Backup DB + media + manifest; validation/rollback.
 
-### Phase 22 - Performance + Android Release
+### Phase 21 - Performance + Android Release
 Profiling, large-screen UX, crash handling, release migration tests, signed Android build.
 
 ---

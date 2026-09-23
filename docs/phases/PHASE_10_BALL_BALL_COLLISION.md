@@ -1,22 +1,23 @@
-# PHASE 10 - BALL MOTION + FRICTION
+# PHASE 10 - BALL-BALL COLLISION
 
 ## Mục tiêu
-Motion cơ bản và friction v1.
+Phát hiện và xử lý va chạm hai bi.
 
 ## Spec bắt buộc đọc
 - `docs/specs/08_PHYSICS_ENGINE.md`
 
 ## Deliverables
-1. Motion integration
-2. Friction model
-3. Stop threshold
+1. Collision detection
+2. Impulse response
+3. Overlap correction
+4. Tests
 
 ## Không làm trong phase này
-- Chưa side spin cushion
+- Chưa cushion spin nâng cao
 
 ## Acceptance Criteria
-- [ ] Known motion cases pass tolerance
-- [ ] Không phụ thuộc frame rate UI
+- [ ] Head-on/angled tests pass
+- [ ] Không tạo năng lượng vô lý ngoài tolerance
 
 ## Completion report
 Báo Summary, Files changed, Migration impact, Tests, Acceptance PASS/FAIL, Manual test steps, Known limitations.

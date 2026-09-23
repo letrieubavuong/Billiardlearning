@@ -11,25 +11,20 @@
 | 5 | Teaching Trajectory + Animation | NOT_STARTED | |
 | 6 | Lesson Domain + Lesson Builder | NOT_STARTED | |
 | 7 | Scene Sharing + Versioning | NOT_STARTED | |
-| 8A | Camera Infrastructure | NOT_STARTED | |
-| 8B | Table Detection | NOT_STARTED | |
-| 8C | Perspective Transform | NOT_STARTED | |
-| 8D | Ball Detection | NOT_STARTED | |
-| 8E | Scene Reconstruction | NOT_STARTED | |
-| 9 | Physics Geometry + Fixed Time Step | NOT_STARTED | |
-| 10 | Ball Motion + Friction | NOT_STARTED | |
-| 11 | Ball-Ball Collision | NOT_STARTED | |
-| 12 | Cushion Collision | NOT_STARTED | |
-| 13 | Sliding + Rolling | NOT_STARTED | |
-| 14 | Spin Engine | NOT_STARTED | |
-| 15 | Cue Strike Model | NOT_STARTED | |
-| 16 | Physics Calibration | NOT_STARTED | |
-| 17 | Number System Engine | NOT_STARTED | |
-| 18 | Technique Library | NOT_STARTED | |
-| 19 | Practice Engine | NOT_STARTED | |
-| 20 | Media + Package Import/Export | NOT_STARTED | |
-| 21 | Backup + Restore | NOT_STARTED | |
-| 22 | Performance + Android Release | NOT_STARTED | |
+| 8 | Physics Geometry + Fixed Time Step | NOT_STARTED | |
+| 9 | Ball Motion + Friction | NOT_STARTED | |
+| 10 | Ball-Ball Collision | NOT_STARTED | |
+| 11 | Cushion Collision | NOT_STARTED | |
+| 12 | Sliding + Rolling | NOT_STARTED | |
+| 13 | Spin Engine | NOT_STARTED | |
+| 14 | Cue Strike Model | NOT_STARTED | |
+| 15 | Physics Calibration | NOT_STARTED | |
+| 16 | Number System Engine | NOT_STARTED | |
+| 17 | Technique Library | NOT_STARTED | |
+| 18 | Practice Engine | NOT_STARTED | |
+| 19 | Media + Package Import/Export | NOT_STARTED | |
+| 20 | Backup + Restore | NOT_STARTED | |
+| 21 | Performance + Android Release | NOT_STARTED | |
 
 Status hợp lệ: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `REVIEW`, `DONE`.
 

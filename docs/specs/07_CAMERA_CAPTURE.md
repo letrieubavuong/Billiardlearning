@@ -1,6 +1,11 @@
-# CAMERA CAPTURE & SCENE RECONSTRUCTION
+# CAMERA CAPTURE & SCENE RECONSTRUCTION (OUT OF ACTIVE SCOPE)
 
-## Pipeline
+> [!IMPORTANT]
+> **Roadmap Decision**: Camera capture, table detection, perspective correction, ball detection và automatic scene reconstruction nằm ngoài active product scope hiện tại.
+> Manual Scene Editor là đường soạn thảo Scene chuẩn chính thức (PRIMARY).
+> Các DTO/contract cũ (như `CameraCaptureDomain`, `source = CAMERA`) được giữ lại cho tính tương thích giao diện dữ liệu, không phát triển tính năng mới dựa trên camera.
+
+## Target / Historical Reference Pipeline
 1. Capture image/frame.
 2. Detect table/playfield.
 3. Detect/adjust 4 corners.
@@ -13,7 +18,7 @@
 10. Manual correction.
 11. Confirm/save.
 
-## Domain objects
+## Historical Domain objects
 - CaptureSession
 - TableDetectionResult
 - TableCorner
@@ -22,11 +27,6 @@
 - DetectionConfidence
 - SceneReconstructionResult
 
-## UX rule
-Không yêu cầu AI perfect. Manual correction là phần chính thức của nghiệp vụ.
-
-## First target
-Carom/3-cushion trước. Pool/snooker là extension sau.
-
-## Boundary
-Camera implementation không ghi trực tiếp Lesson DB. Output cuối là `BilliardScene`/candidate scene.
+## Authoring Priority
+- Manual Scene Editor = PRIMARY
+- Camera reconstruction = OUT OF ACTIVE SCOPE

@@ -1,22 +1,22 @@
-# PHASE 13 - SLIDING + ROLLING
+# PHASE 11 - CUSHION COLLISION
 
 ## Mục tiêu
-Mô hình sliding -> rolling -> stop.
+Va chạm bi-băng v1 với geometry/profile.
 
 ## Spec bắt buộc đọc
 - `docs/specs/08_PHYSICS_ENGINE.md`
 
 ## Deliverables
-1. Motion state transitions
-2. Cloth coefficients
+1. Cushion boundaries/normals
+2. Restitution/friction v1
 3. Tests
 
 ## Không làm trong phase này
-- Chưa cue calibration
+- Chưa calibration đầy đủ
 
 ## Acceptance Criteria
-- [ ] Transitions deterministic
-- [ ] No oscillating state bug
+- [ ] Incidence/reflection baseline pass
+- [ ] Không tunnel qua cushion trong test ranges
 
 ## Completion report
 Báo Summary, Files changed, Migration impact, Tests, Acceptance PASS/FAIL, Manual test steps, Known limitations.

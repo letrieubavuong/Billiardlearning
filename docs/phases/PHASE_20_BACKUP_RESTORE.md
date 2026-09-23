@@ -1,4 +1,4 @@
-# PHASE 21 - BACKUP + RESTORE
+# PHASE 20 - BACKUP + RESTORE
 
 ## Mục tiêu
 Backup/restore toàn bộ DB + media an toàn.
