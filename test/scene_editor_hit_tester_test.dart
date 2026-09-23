@@ -347,5 +347,45 @@ void main() {
         );
       },
     );
+
+    test(
+      'cushionNumber annotation can be hit from rail region (Requirement 6 & 7)',
+      () {
+        final viewport = SceneViewport(
+          canvasSize: const Size(360.0, 720.0),
+          viewMode: SceneViewMode.full,
+          isVertical: true,
+        );
+
+        final cushionAnnScene = BilliardScene(
+          id: 'cushion-ann-scene',
+          name: 'Cushion Ann Scene',
+          annotations: const [
+            SceneAnnotation(
+              id: 'cn-top',
+              text: '20',
+              position: TablePoint(0.5, 0.0),
+              role: 'cushionNumber',
+              cushionSide: 'top',
+            ),
+          ],
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        // Tap on top rail (outside playfieldRect, on rail)
+        final topRailTap = Offset(viewport.playfieldRect.center.dx, 5.0);
+
+        final hit = hitTester.hitTest(
+          topRailTap,
+          cushionAnnScene,
+          viewport,
+          true,
+        );
+
+        expect(hit.type, equals(SceneEditorSelectionType.annotation));
+        expect(hit.targetId, equals('cn-top'));
+      },
+    );
   });
 }

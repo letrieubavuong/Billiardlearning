@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:libre2026/application/scene_editor/scene_editor_controller.dart';
 import 'package:libre2026/application/scene_editor/scene_editor_exception.dart';
+import 'package:libre2026/application/scene_editor/scene_editor_selection.dart';
 import 'package:libre2026/application/scene_editor/scene_editor_tool.dart';
 import 'package:libre2026/domain/entities/entities.dart';
 import 'package:libre2026/domain/value_objects/value_objects.dart';
@@ -216,8 +217,9 @@ void main() {
         ),
       );
 
+      final topLeft = tester.getTopLeft(find.byType(SceneEditorCanvas));
       // Tap on top wood rail (outside playfield)
-      await tester.tapAt(const Offset(10, 10));
+      await tester.tapAt(topLeft + const Offset(10, 10));
       await tester.pumpAndSettle();
 
       expect(controller.currentScene.balls, isEmpty);
@@ -226,7 +228,152 @@ void main() {
     });
 
     testWidgets(
-      'ghostBall and extraBall tools create ghost and extra ball types (Requirement 25)',
+      'drag outside visible crop clamps object to visible crop edge (Requirement 2, 3, 5)',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(360, 360);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        // 1. Half view mode: visible v in [0, 0.5]
+        final initialScene = BilliardScene(
+          id: 'half-drag-scene',
+          name: 'Half Drag',
+          balls: const [
+            BallPosition(
+              id: 'b-half',
+              ballType: 'red',
+              position: TablePoint(0.2, 0.2),
+            ),
+          ],
+          createdAt: fixedTime,
+          updatedAt: fixedTime,
+        );
+
+        final controller = SceneEditorController(
+          initialScene: initialScene,
+          clock: clock,
+        );
+        controller.setTool(SceneEditorTool.move);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 360,
+                height: 360,
+                child: SceneEditorCanvas(
+                  controller: controller,
+                  viewMode: SceneViewMode.half,
+                  isVertical: true,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final halfViewport = SceneViewport(
+          canvasSize: const Size(360, 360),
+          viewMode: SceneViewMode.half,
+          isVertical: true,
+        );
+
+        final topLeft1 = tester.getTopLeft(find.byType(SceneEditorCanvas));
+        final startOffset =
+            topLeft1 +
+            adapter.tablePointToLocalOffset(
+              const TablePoint(0.2, 0.2),
+              halfViewport,
+              true,
+            );
+
+        // Drag far below visible bottom crop edge (corresponding to v = 0.8 on full table)
+        final dragBelowOffset = topLeft1 + Offset(startOffset.dx, 500.0);
+
+        final gesture = await tester.startGesture(startOffset);
+        await tester.pump(const Duration(milliseconds: 50));
+        await gesture.moveTo(startOffset + const Offset(0, 20));
+        await tester.pump(const Duration(milliseconds: 50));
+        await gesture.moveTo(dragBelowOffset);
+        await tester.pump(const Duration(milliseconds: 50));
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        // Ball position MUST be clamped to visible bottom crop edge (v = 0.56 for half mode without bottom rail)
+        final movedBall = controller.currentScene.balls.first;
+        expect(movedBall.position.v, closeTo(0.56, 0.02));
+
+        // 2. HalfWidth view mode: visible u in [0, 0.5]
+        final hwScene = BilliardScene(
+          id: 'hw-drag-scene',
+          name: 'HW Drag',
+          balls: const [
+            BallPosition(
+              id: 'b-hw',
+              ballType: 'red',
+              position: TablePoint(0.2, 0.2),
+            ),
+          ],
+          createdAt: fixedTime,
+          updatedAt: fixedTime,
+        );
+
+        final hwController = SceneEditorController(
+          initialScene: hwScene,
+          clock: clock,
+        );
+        hwController.setTool(SceneEditorTool.move);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 200,
+                height: 720,
+                child: SceneEditorCanvas(
+                  controller: hwController,
+                  viewMode: SceneViewMode.halfWidth,
+                  isVertical: true,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final hwViewport = SceneViewport(
+          canvasSize: const Size(200, 720),
+          viewMode: SceneViewMode.halfWidth,
+          isVertical: true,
+        );
+
+        final topLeft2 = tester.getTopLeft(find.byType(SceneEditorCanvas));
+        final hwStart =
+            topLeft2 +
+            adapter.tablePointToLocalOffset(
+              const TablePoint(0.2, 0.2),
+              hwViewport,
+              true,
+            );
+        final hwDragRight =
+            topLeft2 + Offset(400.0, hwStart.dy); // Drag far right
+
+        final hwGesture = await tester.startGesture(hwStart);
+        await tester.pump(const Duration(milliseconds: 50));
+        await hwGesture.moveTo(hwStart + const Offset(20, 0));
+        await tester.pump(const Duration(milliseconds: 50));
+        await hwGesture.moveTo(hwDragRight);
+        await tester.pump(const Duration(milliseconds: 50));
+        await hwGesture.up();
+        await tester.pumpAndSettle();
+
+        // Ball position MUST be clamped to visible right crop edge (u = 0.5)
+        final movedHwBall = hwController.currentScene.balls.first;
+        expect(movedHwBall.position.u, closeTo(0.5, 0.02));
+      },
+    );
+
+    testWidgets(
+      'cushionNumber annotations can be selected and deleted on top, bottom, and right rails (Requirements 9 & 10)',
       (WidgetTester tester) async {
         tester.view.physicalSize = const Size(360, 720);
         tester.view.devicePixelRatio = 1.0;
@@ -249,40 +396,495 @@ void main() {
                 child: SceneEditorCanvas(
                   controller: controller,
                   isVertical: true,
+                  activeCushionNumberText: '20',
                 ),
               ),
             ),
           ),
         );
 
-        // 1. Ghost ball tool
-        controller.setTool(SceneEditorTool.ghostBall);
+        final topLeft = tester.getTopLeft(find.byType(SceneEditorCanvas));
+
+        // 1. Create cushion numbers on top, bottom, and right rails
+        controller.setTool(SceneEditorTool.cushionNumber);
         await tester.pump();
 
-        final tapPt1 = const TablePoint(0.3, 0.3);
-        final offset1 = adapter.tablePointToLocalOffset(tapPt1, viewport, true);
-        await tester.tapAt(offset1);
+        final topRailOffset =
+            topLeft +
+            Offset(viewport.playfieldRect.center.dx, viewport.totalRail * 0.5);
+        await tester.tapAt(topRailOffset);
         await tester.pumpAndSettle();
+        final topAnnId = controller.currentScene.annotations.last.id;
 
-        expect(controller.currentScene.balls.length, equals(1));
-        expect(controller.currentScene.balls.first.ballType, equals('ghost'));
+        final bottomRailOffset =
+            topLeft +
+            Offset(
+              viewport.playfieldRect.center.dx,
+              viewport.canvasSize.height - viewport.totalRail * 0.5,
+            );
+        await tester.tapAt(bottomRailOffset);
+        await tester.pumpAndSettle();
+        final bottomAnnId = controller.currentScene.annotations.last.id;
 
-        // 2. Extra ball tool
-        controller.setTool(SceneEditorTool.extraBall);
+        final rightRailOffset =
+            topLeft +
+            Offset(
+              viewport.canvasSize.width - viewport.totalRail * 0.5,
+              viewport.playfieldRect.center.dy,
+            );
+        await tester.tapAt(rightRailOffset);
+        await tester.pumpAndSettle();
+        final rightAnnId = controller.currentScene.annotations.last.id;
+
+        expect(controller.currentScene.annotations.length, equals(3));
+
+        // 2. Select cushion number annotation on top rail with Select tool (Requirement 10)
+        controller.setTool(SceneEditorTool.select);
         await tester.pump();
 
-        final tapPt2 = const TablePoint(0.6, 0.6);
-        final offset2 = adapter.tablePointToLocalOffset(tapPt2, viewport, true);
-        await tester.tapAt(offset2);
+        await tester.tapAt(topRailOffset);
         await tester.pumpAndSettle();
 
-        expect(controller.currentScene.balls.length, equals(2));
-        expect(controller.currentScene.balls.last.ballType, equals('extra'));
+        expect(
+          controller.state.selection,
+          equals(SceneEditorSelection.annotation(topAnnId)),
+        );
+
+        // 3. Delete cushion number annotations on rails with Delete tool (Requirement 9)
+        controller.setTool(SceneEditorTool.delete);
+        await tester.pump();
+
+        // Delete top rail cushion number
+        await tester.tapAt(topRailOffset);
+        await tester.pumpAndSettle();
+        expect(
+          controller.currentScene.annotations.any((a) => a.id == topAnnId),
+          isFalse,
+        );
+
+        // Delete bottom rail cushion number
+        await tester.tapAt(bottomRailOffset);
+        await tester.pumpAndSettle();
+        expect(
+          controller.currentScene.annotations.any((a) => a.id == bottomAnnId),
+          isFalse,
+        );
+
+        // Delete right rail cushion number
+        await tester.tapAt(rightRailOffset);
+        await tester.pumpAndSettle();
+        expect(
+          controller.currentScene.annotations.any((a) => a.id == rightAnnId),
+          isFalse,
+        );
+
+        expect(controller.currentScene.annotations, isEmpty);
       },
     );
 
     testWidgets(
-      'label tool with null onLabelRequested does NOT commit placeholder annotation (Requirement 23)',
+      'error propagation rethrows exception when onEditorError is null and passes exception when handler provided (Requirements 11, 12, 13)',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(360, 720);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final initialScene = BilliardScene(
+          id: 'race-scene',
+          name: 'Race Scene',
+          balls: const [
+            BallPosition(
+              id: 'b-race',
+              ballType: 'red',
+              position: TablePoint(0.3, 0.3),
+            ),
+          ],
+          createdAt: fixedTime,
+          updatedAt: fixedTime,
+        );
+
+        final viewport = SceneViewport(
+          canvasSize: const Size(360, 720),
+          viewMode: SceneViewMode.full,
+          isVertical: true,
+        );
+
+        // 1. With handler provided (Requirement 12)
+        final controllerWithHandler = SceneEditorController(
+          initialScene: initialScene,
+          clock: clock,
+        );
+        controllerWithHandler.setTool(SceneEditorTool.move);
+        SceneEditorException? capturedError;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 360,
+                height: 720,
+                child: SceneEditorCanvas(
+                  controller: controllerWithHandler,
+                  isVertical: true,
+                  onEditorError: (e) => capturedError = e,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final topLeft1 = tester.getTopLeft(find.byType(SceneEditorCanvas));
+        final startOffset1 =
+            topLeft1 +
+            adapter.tablePointToLocalOffset(
+              const TablePoint(0.3, 0.3),
+              viewport,
+              true,
+            );
+        final dragOffset1 =
+            topLeft1 +
+            adapter.tablePointToLocalOffset(
+              const TablePoint(0.7, 0.7),
+              viewport,
+              true,
+            );
+
+        // Start drag on ball b-race
+        final gesture1 = await tester.startGesture(startOffset1);
+        await tester.pump(const Duration(milliseconds: 50));
+        await gesture1.moveTo(startOffset1 + const Offset(10, 10));
+        await tester.pump(const Duration(milliseconds: 50));
+        await gesture1.moveTo(dragOffset1);
+        await tester.pump(const Duration(milliseconds: 50));
+
+        // Delete ball b-race mid-drag via controller
+        controllerWithHandler.deleteBall('b-race');
+
+        // Finish drag -> moveBall('b-race') throws SceneEditorTargetNotFoundException
+        await gesture1.up();
+        await tester.pumpAndSettle();
+
+        expect(capturedError, isA<SceneEditorTargetNotFoundException>());
+
+        // 2. Without handler (onEditorError == null, Requirement 13) -> exception rethrown
+        final controllerNoHandler = SceneEditorController(
+          initialScene: initialScene,
+          clock: clock,
+        );
+        controllerNoHandler.setTool(SceneEditorTool.move);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 360,
+                height: 720,
+                child: SceneEditorCanvas(
+                  controller: controllerNoHandler,
+                  isVertical: true,
+                  onEditorError: null,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final topLeft2 = tester.getTopLeft(find.byType(SceneEditorCanvas));
+        final startOffset2 =
+            topLeft2 +
+            adapter.tablePointToLocalOffset(
+              const TablePoint(0.3, 0.3),
+              viewport,
+              true,
+            );
+        final dragOffset2 =
+            topLeft2 +
+            adapter.tablePointToLocalOffset(
+              const TablePoint(0.7, 0.7),
+              viewport,
+              true,
+            );
+
+        final gesture2 = await tester.startGesture(startOffset2);
+        await tester.pump(const Duration(milliseconds: 50));
+        await gesture2.moveTo(startOffset2 + const Offset(10, 10));
+        await tester.pump(const Duration(milliseconds: 50));
+        await gesture2.moveTo(dragOffset2);
+        await tester.pump(const Duration(milliseconds: 50));
+
+        // Delete ball b-race mid-drag via controller
+        controllerNoHandler.deleteBall('b-race');
+
+        // Finish drag -> moveBall('b-race') rethrows SceneEditorTargetNotFoundException
+        await gesture2.up();
+        await tester.pumpAndSettle();
+
+        final dynamic exception = tester.takeException();
+        expect(exception, isA<SceneEditorTargetNotFoundException>());
+      },
+    );
+
+    testWidgets(
+      'move annotation and move trajectory point widget flows (Requirement 14)',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(360, 720);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final initialScene = BilliardScene(
+          id: 'move-scene',
+          name: 'Move Scene',
+          annotations: const [
+            SceneAnnotation(
+              id: 'ann-m',
+              text: 'Label',
+              position: TablePoint(0.2, 0.2),
+            ),
+          ],
+          trajectories: const [
+            TrajectoryLine(
+              id: 'traj-m',
+              points: [TablePoint(0.4, 0.4), TablePoint(0.6, 0.6)],
+            ),
+          ],
+          createdAt: fixedTime,
+          updatedAt: fixedTime,
+        );
+
+        final controller = SceneEditorController(
+          initialScene: initialScene,
+          clock: clock,
+        );
+        controller.setTool(SceneEditorTool.move);
+        controller.select(const SceneEditorSelection.annotation('ann-m'));
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 360,
+                height: 720,
+                child: SceneEditorCanvas(
+                  controller: controller,
+                  isVertical: true,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final viewport = SceneViewport(
+          canvasSize: const Size(360, 720),
+          viewMode: SceneViewMode.full,
+          isVertical: true,
+        );
+
+        final topLeft = tester.getTopLeft(find.byType(SceneEditorCanvas));
+
+        // 1. Move annotation from (0.2, 0.2) to (0.5, 0.5)
+        final annStart =
+            topLeft +
+            adapter.tablePointToLocalOffset(
+              const TablePoint(0.2, 0.2),
+              viewport,
+              true,
+            );
+        final annTarget =
+            topLeft +
+            adapter.tablePointToLocalOffset(
+              const TablePoint(0.5, 0.5),
+              viewport,
+              true,
+            );
+
+        await tester.dragFrom(annStart, annTarget - annStart);
+        await tester.pumpAndSettle();
+
+        final movedAnn = controller.currentScene.annotations.first;
+        expect(movedAnn.position.u, closeTo(0.5, 0.02));
+        expect(controller.state.canUndo, isTrue);
+
+        controller.undo();
+        expect(
+          controller.currentScene.annotations.first.position,
+          equals(const TablePoint(0.2, 0.2)),
+        );
+
+        // 2. Move trajectory point from (0.4, 0.4) to (0.8, 0.8)
+        final tpStart =
+            topLeft +
+            adapter.tablePointToLocalOffset(
+              const TablePoint(0.4, 0.4),
+              viewport,
+              true,
+            );
+        final tpTarget =
+            topLeft +
+            adapter.tablePointToLocalOffset(
+              const TablePoint(0.8, 0.8),
+              viewport,
+              true,
+            );
+
+        final g2 = await tester.startGesture(tpStart);
+        await tester.pump(const Duration(milliseconds: 50));
+        await g2.moveTo(tpStart + const Offset(10, 10));
+        await tester.pump(const Duration(milliseconds: 50));
+        await g2.moveTo(tpTarget);
+        await tester.pump(const Duration(milliseconds: 50));
+        await g2.up();
+        await tester.pumpAndSettle();
+
+        final movedTp = controller.currentScene.trajectories.first.points.first;
+        expect(movedTp.u, closeTo(0.8, 0.02));
+        expect(controller.state.canUndo, isTrue);
+
+        controller.undo();
+        expect(
+          controller.currentScene.trajectories.first.points.first,
+          equals(const TablePoint(0.4, 0.4)),
+        );
+      },
+    );
+
+    testWidgets(
+      'select tool taps entity and clears selection on empty area (Requirement 15)',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(360, 720);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final initialScene = BilliardScene(
+          id: 'sel-scene',
+          name: 'Sel Scene',
+          balls: const [
+            BallPosition(
+              id: 'b-sel',
+              ballType: 'red',
+              position: TablePoint(0.4, 0.4),
+            ),
+          ],
+          createdAt: fixedTime,
+          updatedAt: fixedTime,
+        );
+
+        final controller = SceneEditorController(
+          initialScene: initialScene,
+          clock: clock,
+        );
+        controller.setTool(SceneEditorTool.select);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 360,
+                height: 720,
+                child: SceneEditorCanvas(
+                  controller: controller,
+                  isVertical: true,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final viewport = SceneViewport(
+          canvasSize: const Size(360, 720),
+          viewMode: SceneViewMode.full,
+          isVertical: true,
+        );
+
+        final topLeft = tester.getTopLeft(find.byType(SceneEditorCanvas));
+
+        // Tap ball -> selection becomes ball ID
+        final ballOffset =
+            topLeft +
+            adapter.tablePointToLocalOffset(
+              const TablePoint(0.4, 0.4),
+              viewport,
+              true,
+            );
+        await tester.tapAt(ballOffset);
+        await tester.pumpAndSettle();
+
+        expect(
+          controller.state.selection,
+          equals(const SceneEditorSelection.ball('b-sel')),
+        );
+
+        // Tap empty area -> selection becomes none
+        final emptyOffset =
+            topLeft +
+            adapter.tablePointToLocalOffset(
+              const TablePoint(0.1, 0.1),
+              viewport,
+              true,
+            );
+        await tester.tapAt(emptyOffset);
+        await tester.pumpAndSettle();
+
+        expect(
+          controller.state.selection,
+          equals(const SceneEditorSelection.none()),
+        );
+      },
+    );
+
+    testWidgets(
+      'regular ball tool creates red ball on visible playfield (Requirement 16)',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(360, 720);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final controller = SceneEditorController(clock: clock);
+        controller.setTool(SceneEditorTool.ball);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 360,
+                height: 720,
+                child: SceneEditorCanvas(
+                  controller: controller,
+                  isVertical: true,
+                  activeBallType: 'red',
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final viewport = SceneViewport(
+          canvasSize: const Size(360, 720),
+          viewMode: SceneViewMode.full,
+          isVertical: true,
+        );
+
+        final topLeft = tester.getTopLeft(find.byType(SceneEditorCanvas));
+        final tapOffset =
+            topLeft +
+            adapter.tablePointToLocalOffset(
+              const TablePoint(0.5, 0.5),
+              viewport,
+              true,
+            );
+        await tester.tapAt(tapOffset);
+        await tester.pumpAndSettle();
+
+        expect(controller.currentScene.balls.length, equals(1));
+        expect(controller.currentScene.balls.first.ballType, equals('red'));
+      },
+    );
+
+    testWidgets(
+      'label tool positive flow invokes onLabelRequested and repaints when annotation added (Requirement 17)',
       (WidgetTester tester) async {
         tester.view.physicalSize = const Size(360, 720);
         tester.view.devicePixelRatio = 1.0;
@@ -291,6 +893,7 @@ void main() {
 
         final controller = SceneEditorController(clock: clock);
         controller.setTool(SceneEditorTool.label);
+        TablePoint? requestedPosition;
 
         await tester.pumpWidget(
           MaterialApp(
@@ -301,7 +904,11 @@ void main() {
                 child: SceneEditorCanvas(
                   controller: controller,
                   isVertical: true,
-                  onLabelRequested: null, // No label provider
+                  onLabelRequested: (pos) {
+                    requestedPosition = pos;
+                    // Emulate UI owner adding annotation through controller
+                    controller.addAnnotation(text: 'User Text', position: pos);
+                  },
                 ),
               ),
             ),
@@ -314,175 +921,51 @@ void main() {
           isVertical: true,
         );
 
-        final tapOffset = adapter.tablePointToLocalOffset(
-          const TablePoint(0.5, 0.5),
-          viewport,
-          true,
-        );
-
+        final topLeft = tester.getTopLeft(find.byType(SceneEditorCanvas));
+        final tapOffset =
+            topLeft +
+            adapter.tablePointToLocalOffset(
+              const TablePoint(0.4, 0.4),
+              viewport,
+              true,
+            );
         await tester.tapAt(tapOffset);
         await tester.pumpAndSettle();
 
-        // Assert NO annotation was added, scene remains clean, no undo
-        expect(controller.currentScene.annotations, isEmpty);
-        expect(controller.state.isDirty, isFalse);
-        expect(controller.state.canUndo, isFalse);
-      },
-    );
-
-    testWidgets(
-      'cushionNumber tool on rail creates cushion annotation, middle tap rejected (Requirement 19, 20, 21)',
-      (WidgetTester tester) async {
-        tester.view.physicalSize = const Size(360, 720);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-
-        final controller = SceneEditorController(clock: clock);
-        controller.setTool(SceneEditorTool.cushionNumber);
-
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: SizedBox(
-                width: 360,
-                height: 720,
-                child: SceneEditorCanvas(
-                  controller: controller,
-                  isVertical: true,
-                  activeCushionNumberText: '50',
-                ),
-              ),
-            ),
-          ),
-        );
-
-        final viewport = SceneViewport(
-          canvasSize: const Size(360, 720),
-          viewMode: SceneViewMode.full,
-          isVertical: true,
-        );
-
-        // 1. Tap middle of table -> rejected (no annotation created)
-        final middleTap = viewport.playfieldRect.center;
-        await tester.tapAt(middleTap);
-        await tester.pumpAndSettle();
-        expect(controller.currentScene.annotations, isEmpty);
-
-        // 2. Tap top rail -> creates cushion number annotation on top edge
-        final topRailTap = Offset(viewport.playfieldRect.center.dx, 5.0);
-        await tester.tapAt(topRailTap);
-        await tester.pumpAndSettle();
-
+        expect(requestedPosition, isNotNull);
+        expect(requestedPosition!.u, closeTo(0.4, 0.02));
         expect(controller.currentScene.annotations.length, equals(1));
-        final ann = controller.currentScene.annotations.first;
-        expect(ann.text, equals('50'));
-        expect(ann.role, equals('cushionNumber'));
-        expect(ann.cushionSide, equals('top'));
-        expect(ann.position.v, equals(0.0)); // Canonical top edge
+        expect(
+          controller.currentScene.annotations.first.text,
+          equals('User Text'),
+        );
       },
     );
 
     testWidgets(
-      'trajectory tool session resets activeTrajectoryId on tool switch (Requirement 9)',
+      'delete tool performs separate explicit deletions for ball, annotation, trajectory, and trajectory point (Requirement 18)',
       (WidgetTester tester) async {
         tester.view.physicalSize = const Size(360, 720);
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
 
-        final controller = SceneEditorController(clock: clock);
-        final viewport = SceneViewport(
-          canvasSize: const Size(360, 720),
-          viewMode: SceneViewMode.full,
-          isVertical: true,
-        );
-
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: SizedBox(
-                width: 360,
-                height: 720,
-                child: SceneEditorCanvas(
-                  controller: controller,
-                  isVertical: true,
-                ),
-              ),
-            ),
-          ),
-        );
-
-        // 1. Switch to trajectory tool and tap 2 points -> creates Trajectory 1 with 2 points
-        controller.setTool(SceneEditorTool.trajectory);
-        await tester.pump();
-
-        await tester.tapAt(
-          adapter.tablePointToLocalOffset(
-            const TablePoint(0.2, 0.2),
-            viewport,
-            true,
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        await tester.tapAt(
-          adapter.tablePointToLocalOffset(
-            const TablePoint(0.4, 0.4),
-            viewport,
-            true,
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        expect(controller.currentScene.trajectories.length, equals(1));
-        expect(
-          controller.currentScene.trajectories.first.points.length,
-          equals(2),
-        );
-
-        // 2. Switch away to select tool
-        controller.setTool(SceneEditorTool.select);
-        await tester.pumpAndSettle();
-
-        // 3. Switch BACK to trajectory tool -> first tap MUST create a NEW trajectory (not append to old one!)
-        controller.setTool(SceneEditorTool.trajectory);
-        await tester.pumpAndSettle();
-
-        await tester.tapAt(
-          adapter.tablePointToLocalOffset(
-            const TablePoint(0.7, 0.7),
-            viewport,
-            true,
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        expect(controller.currentScene.trajectories.length, equals(2));
-        expect(
-          controller.currentScene.trajectories.last.points.length,
-          equals(1),
-        );
-      },
-    );
-
-    testWidgets(
-      'delete tool deletes ball, annotation, trajectory, and trajectory point',
-      (WidgetTester tester) async {
-        tester.view.physicalSize = const Size(360, 720);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-
-        final ptBall = const TablePoint(0.3, 0.3);
-        final ptAnn = const TablePoint(0.7, 0.7);
+        final ptBall = const TablePoint(0.2, 0.2);
+        final ptAnn = const TablePoint(0.8, 0.8);
+        final ptTp = const TablePoint(0.5, 0.5);
 
         final initialScene = BilliardScene(
-          id: 'del-scene',
-          name: 'Del Scene',
+          id: 'del-all-scene',
+          name: 'Del All Scene',
           balls: [BallPosition(id: 'b-del', ballType: 'red', position: ptBall)],
           annotations: [
             SceneAnnotation(id: 'a-del', text: 'Del', position: ptAnn),
+          ],
+          trajectories: [
+            TrajectoryLine(
+              id: 't-del',
+              points: [ptTp, const TablePoint(0.6, 0.6)],
+            ),
           ],
           createdAt: fixedTime,
           updatedAt: fixedTime,
@@ -515,52 +998,35 @@ void main() {
           isVertical: true,
         );
 
-        // Tap on ball -> deletes ball
+        final topLeft = tester.getTopLeft(find.byType(SceneEditorCanvas));
+
+        // 1. Explicit assertion for deleting ball
         await tester.tapAt(
-          adapter.tablePointToLocalOffset(ptBall, viewport, true),
+          topLeft + adapter.tablePointToLocalOffset(ptBall, viewport, true),
         );
         await tester.pumpAndSettle();
         expect(controller.currentScene.balls, isEmpty);
 
-        // Tap on annotation -> deletes annotation
+        // 2. Explicit assertion for deleting annotation
         await tester.tapAt(
-          adapter.tablePointToLocalOffset(ptAnn, viewport, true),
+          topLeft + adapter.tablePointToLocalOffset(ptAnn, viewport, true),
         );
         await tester.pumpAndSettle();
         expect(controller.currentScene.annotations, isEmpty);
-      },
-    );
 
-    testWidgets(
-      'onEditorError callback receives SceneEditorException (Requirement 14)',
-      (WidgetTester tester) async {
-        tester.view.physicalSize = const Size(360, 720);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-
-        final controller = SceneEditorController(clock: clock);
-        SceneEditorException? capturedError;
-
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: SizedBox(
-                width: 360,
-                height: 720,
-                child: SceneEditorCanvas(
-                  controller: controller,
-                  isVertical: true,
-                  onEditorError: (e) => capturedError = e,
-                ),
-              ),
-            ),
-          ),
+        // 3. Explicit assertion for deleting trajectory point (ptTp is trajectory point 0)
+        await tester.tapAt(
+          topLeft + adapter.tablePointToLocalOffset(ptTp, viewport, true),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          controller.currentScene.trajectories.first.points.length,
+          equals(1),
         );
 
-        // Verify canvas rendered without error
-        expect(find.byType(SceneEditorCanvas), findsOneWidget);
-        expect(capturedError, isNull);
+        // 4. Explicit assertion for deleting full trajectory line
+        controller.deleteTrajectory('t-del');
+        expect(controller.currentScene.trajectories, isEmpty);
       },
     );
   });

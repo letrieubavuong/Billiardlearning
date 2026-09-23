@@ -240,5 +240,32 @@ void main() {
         expect(middleHit, isNull);
       },
     );
+
+    test(
+      'localOffsetToVisibleTablePoint clamps pointer to visible playfieldRect crop boundaries',
+      () {
+        // Half view mode: playfieldRect height is half of full table
+        final halfViewport = SceneViewport(
+          canvasSize: const Size(360.0, 360.0),
+          viewMode: SceneViewMode.half,
+          isVertical: true,
+        );
+
+        // Pointer dragged below visible bottom edge
+        final offsetBelowCrop = Offset(
+          halfViewport.playfieldRect.center.dx,
+          halfViewport.canvasSize.height + 100.0,
+        );
+
+        final clampedPt = adapter.localOffsetToVisibleTablePoint(
+          offsetBelowCrop,
+          halfViewport,
+          true,
+        );
+
+        // Should be clamped to the visible bottom crop edge (v = 0.5)
+        expect(clampedPt.v, closeTo(0.5, 1e-4));
+      },
+    );
   });
 }

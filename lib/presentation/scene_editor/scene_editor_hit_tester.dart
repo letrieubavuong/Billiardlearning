@@ -33,21 +33,49 @@ class SceneEditorHitTester {
   /// 3. Annotation (`annotation`)
   /// 4. Trajectory Line (`trajectory`)
   /// 5. None (`none`)
+  /// Helper to check if a viewport offset falls within the visible playfield with edge tolerance.
+  bool _isPointInVisiblePlayfield(
+    Offset vpPt,
+    SceneViewport viewport, {
+    double eps = 2.0,
+  }) {
+    final rect = viewport.playfieldRect;
+    return vpPt.dx >= rect.left - eps &&
+        vpPt.dx <= rect.right + eps &&
+        vpPt.dy >= rect.top - eps &&
+        vpPt.dy <= rect.bottom + eps;
+  }
+
+  /// Performs screen-space hit testing against [scene] entities at [localOffset].
+  ///
+  /// Priority:
+  /// 1. Trajectory Point (`trajectoryPoint`)
+  /// 2. Ball (`ball`)
+  /// 3. Annotation (`annotation`)
+  /// 4. Trajectory Line (`trajectory`)
+  /// 5. None (`none`)
   SceneEditorSelection hitTest(
     Offset localOffset,
     BilliardScene scene,
     SceneViewport viewport,
     bool isVertical,
   ) {
-    // Normal entities MUST be inside visible playfieldRect (Item 18: Normal hit region != Rail region)
+    // Check total canvas bounds (isRailTool: true allows taps on rail regions)
     if (!_adapter.isPointInVisibleBounds(
       localOffset,
       viewport,
       isVertical,
-      isRailTool: false,
+      isRailTool: true,
     )) {
       return const SceneEditorSelection.none();
     }
+
+    final isPointerInPlayfield = _adapter.isPointInVisibleBounds(
+      localOffset,
+      viewport,
+      isVertical,
+      isRailTool: false,
+    );
 
     final vpOffset = _adapter.localOffsetToViewportOffset(
       localOffset,
@@ -55,76 +83,134 @@ class SceneEditorHitTester {
       isVertical,
     );
 
-    // 1. Trajectory Control Points (highest priority)
-    for (final traj in scene.trajectories) {
-      for (var i = 0; i < traj.points.length; i++) {
-        final ptVp = viewport.tablePointToOffset(traj.points[i]);
-        // Entity must be visible on screen
-        if (!viewport.playfieldRect.contains(ptVp)) continue;
+    // 1. Trajectory Control Points (highest priority, visible playfield only)
+    if (isPointerInPlayfield) {
+      for (final traj in scene.trajectories) {
+        for (var i = 0; i < traj.points.length; i++) {
+          final ptVp = viewport.tablePointToOffset(traj.points[i]);
+          if (!_isPointInVisiblePlayfield(ptVp, viewport)) continue;
 
-        final ptScreen = _adapter.tablePointToLocalOffset(
-          traj.points[i],
-          viewport,
-          isVertical,
-        );
-        if ((ptScreen - localOffset).distance <= pointHitSlopPx) {
-          return SceneEditorSelection.trajectoryPoint(traj.id, i);
+          final ptScreen = _adapter.tablePointToLocalOffset(
+            traj.points[i],
+            viewport,
+            isVertical,
+          );
+          if ((ptScreen - localOffset).distance <= pointHitSlopPx) {
+            return SceneEditorSelection.trajectoryPoint(traj.id, i);
+          }
         }
       }
     }
 
-    // 2. Balls
-    final double dynamicBallRadius = viewport.diamondSpacing * 0.1;
-    final double effectiveBallSlop = math.max(
-      ballHitSlopPx,
-      dynamicBallRadius * 1.2,
+    // 2. Balls (visible playfield only)
+    if (isPointerInPlayfield) {
+      final double dynamicBallRadius = viewport.diamondSpacing * 0.1;
+      final double effectiveBallSlop = math.max(
+        ballHitSlopPx,
+        dynamicBallRadius * 1.2,
+      );
+
+      for (final ball in scene.balls) {
+        final ballVp = viewport.tablePointToOffset(ball.position);
+        if (!_isPointInVisiblePlayfield(ballVp, viewport)) continue;
+
+        final ballScreen = _adapter.tablePointToLocalOffset(
+          ball.position,
+          viewport,
+          isVertical,
+        );
+        if ((ballScreen - localOffset).distance <= effectiveBallSlop) {
+          return SceneEditorSelection.ball(ball.id);
+        }
+      }
+    }
+
+    // 3. Annotations (Normal annotations: playfield only; Cushion numbers: rail-aware)
+    final bool hasRightRail =
+        viewport.viewMode != SceneViewMode.halfWidth &&
+        viewport.viewMode != SceneViewMode.halfWidthHalfLength &&
+        viewport.viewMode != SceneViewMode.halfWidthThirdLength &&
+        viewport.viewMode != SceneViewMode.halfWidthQuarterLength;
+
+    final railHit = _adapter.detectRailRegion(
+      localOffset,
+      viewport,
+      isVertical,
     );
 
-    for (final ball in scene.balls) {
-      final ballVp = viewport.tablePointToOffset(ball.position);
-      // Entity must be visible on screen
-      if (!viewport.playfieldRect.contains(ballVp)) continue;
-
-      final ballScreen = _adapter.tablePointToLocalOffset(
-        ball.position,
-        viewport,
-        isVertical,
-      );
-      if ((ballScreen - localOffset).distance <= effectiveBallSlop) {
-        return SceneEditorSelection.ball(ball.id);
-      }
-    }
-
-    // 3. Annotations
     for (final ann in scene.annotations) {
       final annVp = viewport.tablePointToOffset(ann.position);
-      // Entity must be visible on screen
-      if (!viewport.playfieldRect.contains(annVp)) continue;
+      final isCushionNumber = ann.role == 'cushionNumber';
 
-      final annScreen = _adapter.tablePointToLocalOffset(
-        ann.position,
-        viewport,
-        isVertical,
-      );
-      if ((annScreen - localOffset).distance <= annotationHitSlopPx) {
-        return SceneEditorSelection.annotation(ann.id);
+      if (isCushionNumber) {
+        // Rail-aware cushion number annotation hit test
+        final side = ann.cushionSide;
+        bool isSideVisible = true;
+        if (side == 'bottom' && !viewport.hasBottomRail) isSideVisible = false;
+        if (side == 'right' && !hasRightRail) isSideVisible = false;
+
+        if (!isSideVisible) continue;
+        if (railHit != null && railHit.side != side) continue;
+
+        final annScreen = _adapter.tablePointToLocalOffset(
+          ann.position,
+          viewport,
+          isVertical,
+        );
+        final double effectiveSlop = math.max(
+          annotationHitSlopPx,
+          viewport.totalRail * 1.2,
+        );
+
+        final double dist;
+        if (railHit != null) {
+          if (side == 'top' || side == 'bottom') {
+            dist = (annScreen.dx - localOffset.dx).abs();
+          } else {
+            dist = (annScreen.dy - localOffset.dy).abs();
+          }
+        } else {
+          dist = (annScreen - localOffset).distance;
+        }
+
+        if (dist <= effectiveSlop) {
+          return SceneEditorSelection.annotation(ann.id);
+        }
+      } else {
+        // Normal annotation: requires pointer inside playfield and entity inside visible playfield
+        if (!isPointerInPlayfield) continue;
+        if (!_isPointInVisiblePlayfield(annVp, viewport)) continue;
+
+        final annScreen = _adapter.tablePointToLocalOffset(
+          ann.position,
+          viewport,
+          isVertical,
+        );
+        if ((annScreen - localOffset).distance <= annotationHitSlopPx) {
+          return SceneEditorSelection.annotation(ann.id);
+        }
       }
     }
 
-    // 4. Trajectory Line Segments
-    for (final traj in scene.trajectories) {
-      if (traj.points.length < 2) continue;
-      for (var i = 0; i < traj.points.length - 1; i++) {
-        final p1Vp = viewport.tablePointToOffset(traj.points[i]);
-        final p2Vp = viewport.tablePointToOffset(traj.points[i + 1]);
+    // 4. Trajectory Line Segments (visible playfield only)
+    if (isPointerInPlayfield) {
+      for (final traj in scene.trajectories) {
+        if (traj.points.length < 2) continue;
+        for (var i = 0; i < traj.points.length - 1; i++) {
+          final p1Vp = viewport.tablePointToOffset(traj.points[i]);
+          final p2Vp = viewport.tablePointToOffset(traj.points[i + 1]);
 
-        // Clip line segment to visible playfieldRect (Item 17)
-        final clipped = _clipSegmentToRect(p1Vp, p2Vp, viewport.playfieldRect);
-        if (clipped == null) continue; // Fully outside visible crop
+          final clipped = _clipSegmentToRect(
+            p1Vp,
+            p2Vp,
+            viewport.playfieldRect,
+          );
+          if (clipped == null) continue;
 
-        if (_distanceToSegment(vpOffset, clipped.a, clipped.b) <=
-            lineHitSlopPx) {
-          return SceneEditorSelection.trajectory(traj.id);
+          if (_distanceToSegment(vpOffset, clipped.a, clipped.b) <=
+              lineHitSlopPx) {
+            return SceneEditorSelection.trajectory(traj.id);
+          }
         }
       }
     }

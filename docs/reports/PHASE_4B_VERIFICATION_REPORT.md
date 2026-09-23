@@ -82,10 +82,10 @@ LegacyRenderAdapter -> SceneRenderModel -> SceneRenderer
 
 ## 5. Test Suite Execution Summary
 
-- **Total Unit & Widget Tests**: 177 PASS / 0 FAIL
+- **Total Unit & Widget Tests**: 181 PASS / 0 FAIL
 
 ```text
-00:32 +177: All tests passed!
+00:35 +181: All tests passed!
 ```
 
 - `test/scene_editor_controller_test.dart`: PASS

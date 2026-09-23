@@ -262,8 +262,11 @@ class _SceneEditorCanvasState extends State<SceneEditorCanvas> {
           break;
       }
     } on SceneEditorException catch (e) {
-      if (widget.onEditorError != null) {
-        widget.onEditorError!(e);
+      final handler = widget.onEditorError;
+      if (handler != null) {
+        handler(e);
+      } else {
+        rethrow;
       }
     }
   }
@@ -296,7 +299,7 @@ class _SceneEditorCanvasState extends State<SceneEditorCanvas> {
 
     widget.controller.select(hitSelection);
 
-    final startPt = _adapter.localOffsetToTablePoint(
+    final startPt = _adapter.localOffsetToVisibleTablePoint(
       localOffset,
       viewport,
       widget.isVertical,
@@ -319,7 +322,7 @@ class _SceneEditorCanvasState extends State<SceneEditorCanvas> {
     }
 
     final localOffset = details.localPosition;
-    final newTablePt = _adapter.localOffsetToTablePoint(
+    final newTablePt = _adapter.localOffsetToVisibleTablePoint(
       localOffset,
       viewport,
       widget.isVertical,
@@ -364,8 +367,11 @@ class _SceneEditorCanvasState extends State<SceneEditorCanvas> {
           break;
       }
     } on SceneEditorException catch (e) {
-      if (widget.onEditorError != null) {
-        widget.onEditorError!(e);
+      final handler = widget.onEditorError;
+      if (handler != null) {
+        handler(e);
+      } else {
+        rethrow;
       }
     } finally {
       _cancelTransientDrag();

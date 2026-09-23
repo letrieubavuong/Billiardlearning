@@ -67,6 +67,33 @@ class SceneEditorGestureAdapter {
     );
   }
 
+  /// Converts raw local screen [localOffset] to logical painter viewport [Offset]
+  /// and clamps it to `viewport.playfieldRect` bounds, returning a [TablePoint]
+  /// constrained to the CURRENT VISIBLE CROP window.
+  TablePoint localOffsetToVisibleTablePoint(
+    Offset localOffset,
+    SceneViewport viewport,
+    bool isVertical,
+  ) {
+    final vpOffset = localOffsetToViewportOffset(
+      localOffset,
+      viewport.canvasSize,
+      isVertical,
+    );
+
+    // Clamp to visible playfieldRect boundaries
+    final double clampedX = vpOffset.dx.clamp(
+      viewport.playfieldRect.left,
+      viewport.playfieldRect.right,
+    );
+    final double clampedY = vpOffset.dy.clamp(
+      viewport.playfieldRect.top,
+      viewport.playfieldRect.bottom,
+    );
+
+    return viewport.offsetToTablePoint(Offset(clampedX, clampedY));
+  }
+
   /// Checks if a raw local screen [localOffset] falls within visible interactive bounds.
   ///
   /// Standard tools require points to fall inside `viewport.playfieldRect`.
