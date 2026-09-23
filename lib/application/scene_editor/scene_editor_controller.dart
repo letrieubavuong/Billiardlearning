@@ -9,12 +9,31 @@ import 'scene_editor_selection.dart';
 import 'scene_editor_state.dart';
 import 'scene_editor_tool.dart';
 
+typedef SceneEditorListener = void Function();
+
 class SceneEditorController {
   final DateTime Function() _clock;
   final SceneEditorHistory _history;
+  final List<SceneEditorListener> _listeners = [];
 
   SceneEditorState _state;
   BilliardScene _savedBaseline;
+
+  void addListener(SceneEditorListener listener) {
+    if (!_listeners.contains(listener)) {
+      _listeners.add(listener);
+    }
+  }
+
+  void removeListener(SceneEditorListener listener) {
+    _listeners.remove(listener);
+  }
+
+  void _notifyListeners() {
+    for (final listener in List<SceneEditorListener>.from(_listeners)) {
+      listener();
+    }
+  }
 
   SceneEditorController._({
     required BilliardScene initialScene,
@@ -239,6 +258,7 @@ class SceneEditorController {
   void setTool(SceneEditorTool tool) {
     if (_state.activeTool == tool) return;
     _state = _state.copyWith(activeTool: tool);
+    _notifyListeners();
   }
 
   /// Sets selection. Selection changes do not create undo history.
@@ -246,6 +266,7 @@ class SceneEditorController {
     final sanitized = sanitizeSelection(_state.scene, selection);
     if (_state.selection == sanitized) return;
     _state = _state.copyWith(selection: sanitized);
+    _notifyListeners();
   }
 
   /// Clears active selection.
@@ -280,6 +301,7 @@ class SceneEditorController {
       canRedo: _history.canRedo,
       errorMessage: () => null,
     );
+    _notifyListeners();
   }
 
   // --- BALL OPERATIONS ---
@@ -802,6 +824,7 @@ class SceneEditorController {
       canRedo: _history.canRedo,
       errorMessage: () => null,
     );
+    _notifyListeners();
   }
 
   void redo() {
@@ -825,12 +848,14 @@ class SceneEditorController {
       canRedo: _history.canRedo,
       errorMessage: () => null,
     );
+    _notifyListeners();
   }
 
   /// Sets the current scene state as the saved baseline (`isDirty = false`).
   void markSaved() {
     _savedBaseline = _state.scene;
     _state = _state.copyWith(isDirty: false);
+    _notifyListeners();
   }
 
   /// Loads [scene] as a new editor session baseline.
@@ -846,5 +871,6 @@ class SceneEditorController {
       canUndo: false,
       canRedo: false,
     );
+    _notifyListeners();
   }
 }
