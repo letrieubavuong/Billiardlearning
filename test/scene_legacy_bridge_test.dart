@@ -200,4 +200,40 @@ void main() {
       expect(reconstructedScene.trajectories.length, equals(4));
     },
   );
+
+  test('freePathColors per-path round trip with multiple free paths', () {
+    final Map<String, dynamic> multiFreePathsPayload = {
+      'schemaVersion': 1,
+      'white': [1.0, 2.0],
+      'paths': {
+        'free': [
+          [
+            [0.5, 1.0],
+            [1.0, 2.0],
+          ],
+          [
+            [2.0, 4.0],
+            [3.0, 6.0],
+          ],
+        ],
+      },
+      'freePathColors': [
+        0xFFFF0000,
+        0xFF00FF00,
+      ], // Color A (#FFFF0000), Color B (#FF00FF00)
+    };
+
+    final scene = LegacySceneImporter.importJsonMap(
+      multiFreePathsPayload,
+    ).scene;
+    expect(scene.trajectories.length, equals(2));
+    expect(scene.trajectories[0].colorHex, equals('#FFFF0000'));
+    expect(scene.trajectories[1].colorHex, equals('#FF00FF00'));
+
+    final exported = LegacySceneExporter.exportJsonMap(scene);
+    final exportedFreeColors = exported['freePathColors'] as List;
+    expect(exportedFreeColors.length, equals(2));
+    expect(exportedFreeColors[0], equals(0xFFFF0000));
+    expect(exportedFreeColors[1], equals(0xFF00FF00));
+  });
 }

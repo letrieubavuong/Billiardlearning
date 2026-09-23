@@ -178,13 +178,16 @@ void main() {
     },
   );
 
-  test('load during in-flight save session safety', () async {
+  test('true load-during-in-flight save session safety', () async {
     controller.addBall(ballType: 'white', position: const TablePoint(0.2, 0.2));
 
     repo.saveCompleter = Completer<void>();
     final oldSaveFuture = coordinator.save();
 
-    // Save of oldSceneId is blocked. Now prepare new scene X in repository
+    // Save of old scene A is now in flight and blocked in repository
+    expect(repo.saveCompleter, isNotNull);
+
+    // Prepare scene X in repository
     final sceneX = BilliardScene(
       id: 'scene_X',
       name: 'Scene X',
@@ -202,21 +205,70 @@ void main() {
     );
     repo.storage['scene_X'] = sceneX;
 
-    // Unblock old save
-    repo.saveCompleter!.complete();
-    repo.saveCompleter = null;
-    await oldSaveFuture;
-
-    // Now load scene X
+    // NOW call loadScene('scene_X') WHILE save A is STILL in flight
     await coordinator.loadScene('scene_X');
     expect(controller.currentScene.id, equals('scene_X'));
     expect(controller.state.isDirty, isFalse);
 
-    // Edit scene X -> Y
+    // User makes edit Y on scene X
     controller.addBall(ballType: 'red', position: const TablePoint(0.8, 0.8));
     expect(controller.state.isDirty, isTrue);
+
+    // NOW unblock the old save A
+    repo.saveCompleter!.complete();
+    repo.saveCompleter = null;
+    await oldSaveFuture;
+
+    // Verify after old save completion:
+    // 1. Current scene remains X
+    // 2. Current edit Y on scene X remains DIRTY (not falsely marked clean by old save completion)
     expect(controller.currentScene.id, equals('scene_X'));
+    expect(controller.state.isDirty, isTrue);
+
+    // Now save Y and verify repository persisted Y
+    await coordinator.save();
+    expect(controller.state.isDirty, isFalse);
+    expect(repo.storage['scene_X']?.balls.length, equals(1));
   });
+
+  test(
+    'same-ID session reload while save in-flight retains dirty state of new session',
+    () async {
+      final originalScene = controller.currentScene;
+      controller.addBall(
+        ballType: 'white',
+        position: const TablePoint(0.1, 0.1),
+      );
+      expect(controller.state.isDirty, isTrue);
+
+      // Store baseline in repo
+      repo.storage[originalScene.id] = originalScene;
+
+      repo.saveCompleter = Completer<void>();
+      final oldSaveFuture = coordinator.save(); // Save of snapshot A1 in flight
+
+      // Reload the SAME scene ID into coordinator (simulates reloading clean baseline A0)
+      await coordinator.loadScene(originalScene.id);
+      expect(controller.state.isDirty, isFalse);
+
+      // Make new edit A2 on fresh session
+      controller.addBall(
+        ballType: 'yellow',
+        position: const TablePoint(0.9, 0.9),
+      );
+      expect(controller.state.isDirty, isTrue);
+
+      // Complete old save A1
+      repo.saveCompleter!.complete();
+      repo.saveCompleter = null;
+      await oldSaveFuture;
+
+      // Old completion MUST NOT mark new session A2 clean or replace baseline
+      expect(controller.state.isDirty, isTrue);
+      expect(controller.currentScene.balls.length, equals(1));
+      expect(controller.currentScene.balls.first.ballType, equals('yellow'));
+    },
+  );
 
   group('SQLite FFI Rich Integration Tests', () {
     late Database db;
@@ -359,28 +411,59 @@ void main() {
         expect(reloaded.name, equals(scene.name));
         expect(reloaded.version, equals(2));
         expect(reloaded.source, equals(SceneSource.importSource));
+        expect(reloaded.status, equals(SceneStatus.active));
+        expect(reloaded.createdAt, equals(DateTime.utc(2026, 1, 15, 10, 0, 0)));
+        expect(reloaded.updatedAt, equals(DateTime.utc(2026, 1, 15, 11, 0, 0)));
 
         // Balls
         expect(reloaded.balls.length, equals(2));
         expect(reloaded.balls[0].label, equals('W'));
+        expect(reloaded.balls[0].colorHex, equals('#FFFFFF'));
         expect(reloaded.balls[0].rotation, equals(45.0));
+        expect(reloaded.balls[0].legacyType, equals(0));
         expect(reloaded.balls[1].ballType, equals('ghost'));
+        expect(reloaded.balls[1].label, equals('G1'));
+        expect(reloaded.balls[1].colorHex, equals('#80FFFFFF'));
+        expect(reloaded.balls[1].rotation, equals(30.0));
         expect(reloaded.balls[1].legacyType, equals(1));
 
         // Trajectories
         expect(reloaded.trajectories.length, equals(1));
+        expect(reloaded.trajectories[0].id, equals('t1'));
         expect(reloaded.trajectories[0].colorHex, equals('#FF0000'));
         expect(reloaded.trajectories[0].points.length, equals(3));
+        expect(
+          reloaded.trajectories[0].points[0],
+          equals(const TablePoint(0.25, 0.5)),
+        );
+        expect(
+          reloaded.trajectories[0].points[1],
+          equals(const TablePoint(0.5, 0.5)),
+        );
+        expect(
+          reloaded.trajectories[0].points[2],
+          equals(const TablePoint(0.75, 0.5)),
+        );
 
         // Annotations
         expect(reloaded.annotations.length, equals(1));
+        expect(reloaded.annotations[0].id, equals('a1'));
+        expect(reloaded.annotations[0].text, equals('Target 50'));
+        expect(reloaded.annotations[0].colorHex, equals('#FFFF00'));
+        expect(reloaded.annotations[0].rotation, equals(90.0));
         expect(reloaded.annotations[0].role, equals('cushionNumber'));
         expect(reloaded.annotations[0].cushionSide, equals('left'));
 
         // Cue Instruction
         expect(reloaded.cueInstruction, isNotNull);
         expect(reloaded.cueInstruction!.power, equals(0.75));
+        expect(
+          reloaded.cueInstruction!.direction.radians,
+          closeTo(1.5, 0.0001),
+        );
         expect(reloaded.cueInstruction!.tipOffset.x, equals(0.2));
+        expect(reloaded.cueInstruction!.tipOffset.y, equals(-0.3));
+        expect(reloaded.cueInstruction!.powerIsResolved, isTrue);
 
         // Presentation Config & Raw Effet Data
         expect(reloaded.presentationConfig, isNotNull);
@@ -389,10 +472,44 @@ void main() {
         expect(reloaded.presentationConfig!.labelFontSize, equals(14.0));
         expect(reloaded.presentationConfig!.rawEffetData, isNotNull);
         expect(
+          reloaded.presentationConfig!.rawEffetData!['showHitBall'],
+          isTrue,
+        );
+        expect(
+          reloaded.presentationConfig!.rawEffetData!['hitThickness'],
+          equals(4),
+        );
+        expect(
           reloaded.presentationConfig!.rawEffetData!['hitSide'],
           equals('left'),
         );
+        expect(
+          reloaded.presentationConfig!.rawEffetData!['spotSize'],
+          equals(30.0),
+        );
+        expect(
+          reloaded.presentationConfig!.rawEffetData!['spots'],
+          isA<List>(),
+        );
+        final spotsList =
+            reloaded.presentationConfig!.rawEffetData!['spots'] as List;
+        expect(spotsList.length, equals(1));
+        expect(spotsList[0]['number'], equals('1'));
+        expect(spotsList[0]['color'], equals(4294967295));
+
         expect(reloaded.presentationConfig!.legacyPathColors, isNotNull);
+        expect(
+          reloaded.presentationConfig!.legacyPathColors!['white'],
+          equals('#B3FFFFFF'),
+        );
+        expect(
+          reloaded.presentationConfig!.legacyPathColors!['yellow'],
+          equals('#FFFFEB3B'),
+        );
+        expect(
+          reloaded.presentationConfig!.legacyPathColors!['red'],
+          equals('#FFF44336'),
+        );
         expect(
           reloaded.presentationConfig!.legacyPathColors!['free'],
           equals('#FF2196F3'),
@@ -400,7 +517,11 @@ void main() {
 
         // Teaching Timeline preservation
         expect(reloaded.teachingTimeline, isNotNull);
-        expect((reloaded.teachingTimeline!['steps'] as List).length, equals(1));
+        final stepsList = reloaded.teachingTimeline!['steps'] as List;
+        expect(stepsList.length, equals(1));
+        expect(stepsList[0]['index'], equals(1));
+        expect(stepsList[0]['text'], equals('Intro step'));
+        expect(stepsList[0]['duration'], equals(2.0));
       },
     );
   });

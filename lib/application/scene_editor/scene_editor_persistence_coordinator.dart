@@ -25,6 +25,7 @@ class SceneEditorPersistenceCoordinator {
   BilliardScene? _lastObservedScene;
   Object? _lastError;
 
+  int _sessionToken = 0;
   int _activeSaveCount = 0;
   int _peakSaveCount = 0;
 
@@ -49,6 +50,7 @@ class SceneEditorPersistenceCoordinator {
   Future<BilliardScene> loadScene(String sceneId) async {
     _ensureNotDisposed();
     _cancelDebounce();
+    _sessionToken++;
 
     final scene = await repository.getById(sceneId);
     if (scene == null) {
@@ -153,15 +155,16 @@ class SceneEditorPersistenceCoordinator {
     }
 
     final snapshotToSave = controller.currentScene;
-    final sessionSceneId = snapshotToSave.id;
+    final sessionToken = _sessionToken;
+    var saveSucceeded = false;
 
     try {
       await repository.save(snapshotToSave);
-
+      saveSucceeded = true;
       _lastError = null;
 
       // Session Guard & Snapshot-Aware Baseline Update
-      if (!_isDisposed && controller.currentScene.id == sessionSceneId) {
+      if (!_isDisposed && _sessionToken == sessionToken) {
         controller.markPersistedSnapshot(snapshotToSave);
       }
     } catch (e, st) {
@@ -177,13 +180,21 @@ class SceneEditorPersistenceCoordinator {
       completer.complete();
       _activeSaveFuture = null;
 
-      // If user edited during save (creating new dirty state C), run follow-up save cycle if needed
+      // Follow-up autosave is scheduled ONLY IF:
+      // 1. Write succeeded (saveSucceeded == true)
+      // 2. We are in autosave mode (!rethrowErrors)
+      // 3. Same session token active (_sessionToken == sessionToken)
+      // 4. Current controller scene differs from snapshotToSave (i.e. user edited C while saving B)
       if (!_isDisposed &&
+          !rethrowErrors &&
+          saveSucceeded &&
+          _sessionToken == sessionToken &&
           controller.state.isDirty &&
-          controller.currentScene.id == sessionSceneId) {
-        if (!rethrowErrors) {
-          _scheduleDebouncedSave();
-        }
+          !SceneEditorController.areScenesIdentical(
+            controller.currentScene,
+            snapshotToSave,
+          )) {
+        _scheduleDebouncedSave();
       }
     }
   }

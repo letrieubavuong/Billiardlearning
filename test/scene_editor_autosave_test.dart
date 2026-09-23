@@ -13,6 +13,7 @@ import 'package:libre2026/domain/value_objects/value_objects.dart';
 class ControllableCountingSceneRepository implements VNextSceneRepository {
   final Map<String, BilliardScene> storage = {};
   int saveCount = 0;
+  int saveAttemptCount = 0;
   int activeSaveCount = 0;
   int peakSaveCount = 0;
   Completer<void>? saveCompleter;
@@ -33,6 +34,7 @@ class ControllableCountingSceneRepository implements VNextSceneRepository {
 
   @override
   Future<void> save(BilliardScene scene) async {
+    saveAttemptCount++;
     activeSaveCount++;
     if (activeSaveCount > peakSaveCount) {
       peakSaveCount = activeSaveCount;
@@ -181,7 +183,7 @@ void main() {
   });
 
   test(
-    'autosave failure exposes observable lastError and retains dirty state',
+    'autosave failure exposes observable lastError, retains dirty state, and does NOT enter infinite retry loop',
     () async {
       Object? reportedError;
       coordinator.dispose();
@@ -201,14 +203,53 @@ void main() {
         ballType: 'white',
         position: const TablePoint(0.5, 0.5),
       );
-      await Future.delayed(const Duration(milliseconds: 80));
+
+      // Wait 150ms across multiple debounce windows (30ms each)
+      await Future.delayed(const Duration(milliseconds: 150));
 
       expect(reportedError, isNotNull);
       expect(coordinator.lastError, isNotNull);
       expect(controller.state.isDirty, isTrue);
+      expect(repo.saveAttemptCount, equals(1));
       expect(repo.saveCount, equals(0));
     },
   );
+
+  test('autosave retries successfully after a new content edit', () async {
+    coordinator.dispose();
+
+    coordinator = SceneEditorPersistenceCoordinator(
+      repository: repo,
+      controller: controller,
+      debounceDuration: const Duration(milliseconds: 30),
+    );
+
+    repo.shouldFailSave = true;
+
+    // 1. Edit B -> autosave fails
+    controller.addBall(ballType: 'white', position: const TablePoint(0.5, 0.5));
+    await Future.delayed(const Duration(milliseconds: 60));
+
+    expect(repo.saveAttemptCount, equals(1));
+    expect(coordinator.lastError, isNotNull);
+    expect(controller.state.isDirty, isTrue);
+
+    // 2. Fix repository and make new content edit C
+    repo.shouldFailSave = false;
+    controller.addBall(
+      ballType: 'yellow',
+      position: const TablePoint(0.2, 0.2),
+    );
+
+    // Wait for new debounced autosave of C
+    await Future.delayed(const Duration(milliseconds: 80));
+
+    expect(repo.saveAttemptCount, equals(2));
+    expect(repo.saveCount, equals(1));
+    expect(controller.state.isDirty, isFalse);
+    expect(coordinator.lastError, isNull);
+    expect(repo.storage[controller.currentScene.id]?.balls.length, equals(2));
+  });
 
   test('dispose cancels pending autosave timer', () async {
     controller.addBall(ballType: 'white', position: const TablePoint(0.5, 0.5));
