@@ -106,17 +106,78 @@ class ScenePresentationConfig {
   final int legacySystemIndex;
   final int legacyViewTypeIndex;
   final double? labelFontSize;
+  final Map<String, dynamic>? rawEffetData;
+  final Map<String, String>? legacyPathColors;
 
-  const ScenePresentationConfig({
+  ScenePresentationConfig({
     this.legacySystemIndex = 0,
     this.legacyViewTypeIndex = 0,
     this.labelFontSize,
-  });
+    Map<String, dynamic>? rawEffetData,
+    Map<String, String>? legacyPathColors,
+  }) : rawEffetData = rawEffetData != null
+           ? Map<String, dynamic>.unmodifiable(_freezeJson(rawEffetData))
+           : null,
+       legacyPathColors = legacyPathColors != null
+           ? Map<String, String>.unmodifiable(legacyPathColors)
+           : null;
+
+  static dynamic _freezeJson(dynamic value) {
+    if (value is Map) {
+      final frozenMap = <String, dynamic>{};
+      value.forEach((k, v) {
+        frozenMap[k.toString()] = _freezeJson(v);
+      });
+      return Map<String, dynamic>.unmodifiable(frozenMap);
+    } else if (value is List) {
+      final frozenList = value.map(_freezeJson).toList();
+      return List<dynamic>.unmodifiable(frozenList);
+    }
+    return value;
+  }
+
+  static bool _areMapsEqual(Map? a, Map? b) {
+    if (identical(a, b)) return true;
+    if (a == null || b == null) return a == b;
+    if (a.length != b.length) return false;
+    for (final key in a.keys) {
+      if (!b.containsKey(key)) return false;
+      final valA = a[key];
+      final valB = b[key];
+      if (valA is Map && valB is Map) {
+        if (!_areMapsEqual(valA, valB)) return false;
+      } else if (valA is List && valB is List) {
+        if (!_areListsEqual(valA, valB)) return false;
+      } else if (valA != valB) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static bool _areListsEqual(List a, List b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      final valA = a[i];
+      final valB = b[i];
+      if (valA is Map && valB is Map) {
+        if (!_areMapsEqual(valA, valB)) return false;
+      } else if (valA is List && valB is List) {
+        if (!_areListsEqual(valA, valB)) return false;
+      } else if (valA != valB) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   Map<String, dynamic> toJson() => {
     'legacySystemIndex': legacySystemIndex,
     'legacyViewTypeIndex': legacyViewTypeIndex,
     if (labelFontSize != null) 'labelFontSize': labelFontSize,
+    if (rawEffetData != null) 'rawEffetData': rawEffetData,
+    if (legacyPathColors != null) 'legacyPathColors': legacyPathColors,
   };
 
   factory ScenePresentationConfig.fromJson(Map<String, dynamic> json) {
@@ -124,6 +185,19 @@ class ScenePresentationConfig {
       legacySystemIndex: json['legacySystemIndex'] as int? ?? 0,
       legacyViewTypeIndex: json['legacyViewTypeIndex'] as int? ?? 0,
       labelFontSize: (json['labelFontSize'] as num?)?.toDouble(),
+      rawEffetData:
+          json.containsKey('rawEffetData') && json['rawEffetData'] is Map
+          ? Map<String, dynamic>.from(json['rawEffetData'] as Map)
+          : null,
+      legacyPathColors:
+          json.containsKey('legacyPathColors') &&
+              json['legacyPathColors'] is Map
+          ? Map<String, String>.from(
+              (json['legacyPathColors'] as Map).map(
+                (k, v) => MapEntry(k.toString(), v.toString()),
+              ),
+            )
+          : null,
     );
   }
 
@@ -134,13 +208,17 @@ class ScenePresentationConfig {
           runtimeType == other.runtimeType &&
           legacySystemIndex == other.legacySystemIndex &&
           legacyViewTypeIndex == other.legacyViewTypeIndex &&
-          labelFontSize == other.labelFontSize;
+          labelFontSize == other.labelFontSize &&
+          _areMapsEqual(rawEffetData, other.rawEffetData) &&
+          _areMapsEqual(legacyPathColors, other.legacyPathColors);
 
   @override
   int get hashCode =>
       legacySystemIndex.hashCode ^
       legacyViewTypeIndex.hashCode ^
-      labelFontSize.hashCode;
+      labelFontSize.hashCode ^
+      (rawEffetData?.length ?? 0).hashCode ^
+      (legacyPathColors?.length ?? 0).hashCode;
 }
 
 class BilliardScene {

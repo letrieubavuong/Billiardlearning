@@ -1,3 +1,5 @@
+// Phase 4C Legacy Bridge Round-Trip Parity Tests
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:libre2026/domain/importers/legacy_scene_bridge.dart';
 import 'package:libre2026/domain/importers/legacy_scene_exporter.dart';
@@ -72,6 +74,13 @@ void main() {
     ],
     'effet': {
       'effet': [0.5, -0.2],
+      'spots': [
+        {'x': 0.5, 'y': -0.2, 'number': '1', 'color': 4294967295},
+      ],
+      'showHitBall': true,
+      'hitThickness': 4,
+      'hitSide': 'left',
+      'spotSize': 30.0,
     },
   };
 
@@ -126,6 +135,13 @@ void main() {
         ]),
       );
 
+      // Verify pathColors map including free
+      final exportedPathColors = exportedPayload['pathColors'] as Map;
+      expect(exportedPathColors['white'], equals(0xB3FFFFFF));
+      expect(exportedPathColors['yellow'], equals(0xFFFFEB3B));
+      expect(exportedPathColors['red'], equals(0xFFF44336));
+      expect(exportedPathColors['free'], equals(0xFF2196F3));
+
       // Verify ghosts and extra balls
       final exportedGhosts = exportedPayload['ghosts'] as List;
       expect(exportedGhosts.length, equals(1));
@@ -137,11 +153,39 @@ void main() {
       expect(exportedExtra[0]['x'], equals(3.0));
       expect(exportedExtra[0]['number'], equals('8'));
 
-      // Verify effet tipOffset
+      // Verify current legacy effet format (spots, showHitBall, hitThickness, hitSide, spotSize)
       final exportedEffet = exportedPayload['effet'] as Map;
       expect(exportedEffet['effet'], equals([0.5, -0.2]));
+      expect(exportedEffet['showHitBall'], isTrue);
+      expect(exportedEffet['hitThickness'], equals(4));
+      expect(exportedEffet['hitSide'], equals('left'));
+      expect(exportedEffet['spotSize'], equals(30.0));
+      expect(exportedEffet['spots'], isNotNull);
     },
   );
+
+  test('pathColors preserved even when paths are empty', () {
+    final Map<String, dynamic> emptyPathsPayload = {
+      'schemaVersion': 1,
+      'white': [1.0, 2.0],
+      'pathColors': {
+        'white': 0xFF112233,
+        'yellow': 0xFF445566,
+        'red': 0xFF778899,
+        'free': 0xFFAABBCC,
+      },
+    };
+
+    final scene = LegacySceneImporter.importJsonMap(emptyPathsPayload).scene;
+    expect(scene.trajectories, isEmpty);
+
+    final exported = LegacySceneExporter.exportJsonMap(scene);
+    final pathColors = exported['pathColors'] as Map;
+    expect(pathColors['white'], equals(0xFF112233));
+    expect(pathColors['yellow'], equals(0xFF445566));
+    expect(pathColors['red'], equals(0xFF778899));
+    expect(pathColors['free'], equals(0xFFAABBCC));
+  });
 
   test(
     'LegacySceneBridge initialDataToScene & sceneToLegacyJson string round trip',

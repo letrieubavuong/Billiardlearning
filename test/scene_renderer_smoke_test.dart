@@ -93,7 +93,7 @@ void main() {
               colorHex: '#FFFF0000',
             ),
           ],
-          presentationConfig: const ScenePresentationConfig(
+          presentationConfig: ScenePresentationConfig(
             legacyViewTypeIndex: 0,
             legacySystemIndex: 0,
           ),

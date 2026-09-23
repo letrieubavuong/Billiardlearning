@@ -20,7 +20,13 @@ class SceneEditorPersistenceCoordinator {
 
   Timer? _debounceTimer;
   bool _isDisposed = false;
-  bool _isSaving = false;
+  Future<void>? _activeSaveFuture;
+
+  BilliardScene? _lastObservedScene;
+  Object? _lastError;
+
+  int _activeSaveCount = 0;
+  int _peakSaveCount = 0;
 
   SceneEditorPersistenceCoordinator({
     required this.repository,
@@ -28,66 +34,77 @@ class SceneEditorPersistenceCoordinator {
     this.debounceDuration = defaultDebounceDuration,
     this.onError,
   }) {
+    _lastObservedScene = controller.currentScene;
     controller.addListener(_onControllerChanged);
   }
 
   bool get hasPendingAutosave => _debounceTimer?.isActive ?? false;
+  Object? get lastError => _lastError;
+  int get activeSaveCount => _activeSaveCount;
+  int get maxConcurrentSaves => _peakSaveCount;
 
   /// Loads an existing scene by ID from repository into [controller].
   ///
   /// Throws [StateError] if the scene with [sceneId] is not found.
   Future<BilliardScene> loadScene(String sceneId) async {
     _ensureNotDisposed();
+    _cancelDebounce();
+
     final scene = await repository.getById(sceneId);
     if (scene == null) {
       throw StateError('Scene with ID "$sceneId" not found in repository.');
     }
     controller.loadScene(scene);
+    _lastObservedScene = controller.currentScene;
+    _lastError = null;
     return scene;
   }
 
-  /// Manually saves the current scene in [controller] to repository.
+  /// Manually saves the current scene snapshot to repository.
   ///
-  /// Calls [controller.markSaved()] ONLY after repository write succeeds.
-  /// If repository write fails, editor remains dirty and error is rethrown.
+  /// Guarantees serialized execution and updates baseline to the persisted snapshot.
+  /// If user edits during save, editor remains dirty and follow-up save persists latest state.
   Future<void> save() async {
     _ensureNotDisposed();
     _cancelDebounce();
-
-    if (_isSaving) return;
-    _isSaving = true;
-
-    try {
-      final sceneToSave = controller.currentScene;
-      await repository.save(sceneToSave);
-      controller.markSaved();
-    } catch (e, st) {
-      if (onError != null) {
-        onError!(e, st);
-      }
-      rethrow;
-    } finally {
-      _isSaving = false;
-    }
+    await _executeSerializedSavePipeline(rethrowErrors: true);
   }
 
-  /// Flushes any pending debounced save immediately if editor is dirty.
+  /// Flushes any pending debounced save immediately and persists latest dirty state.
   Future<void> flushPendingSave() async {
     _ensureNotDisposed();
-    if (_debounceTimer?.isActive == true || controller.state.isDirty) {
-      _cancelDebounce();
-      if (controller.state.isDirty) {
-        await save();
+    _cancelDebounce();
+    while (!_isDisposed && controller.state.isDirty) {
+      final sceneBefore = controller.currentScene;
+      await _executeSerializedSavePipeline(rethrowErrors: true);
+      // If controller scene did not change during save, break loop
+      if (SceneEditorController.areScenesIdentical(
+        controller.currentScene,
+        sceneBefore,
+      )) {
+        break;
       }
     }
   }
 
   void _onControllerChanged() {
     if (_isDisposed) return;
+    final currentScene = controller.currentScene;
+
+    // Content-Only Trigger: Ignore notifications where canonical scene content did not change
+    if (_lastObservedScene != null &&
+        SceneEditorController.areScenesIdentical(
+          currentScene,
+          _lastObservedScene!,
+        )) {
+      return;
+    }
+
+    _lastObservedScene = currentScene;
+
     if (controller.state.isDirty) {
       _scheduleDebouncedSave();
     } else {
-      // If controller is clean (e.g. after undo back to saved baseline), cancel timer
       _cancelDebounce();
     }
   }
@@ -107,16 +124,67 @@ class SceneEditorPersistenceCoordinator {
     if (!controller.state.isDirty) return;
 
     try {
-      final sceneToSave = controller.currentScene;
-      await repository.save(sceneToSave);
-      if (!_isDisposed) {
-        controller.markSaved();
-      }
+      await _executeSerializedSavePipeline(rethrowErrors: false);
     } catch (e, st) {
+      _lastError = e;
       if (onError != null) {
         onError!(e, st);
       }
-      // Controller remains dirty on error
+    }
+  }
+
+  /// Core serialized save pipeline ensuring maximum 1 concurrent repository.save write.
+  Future<void> _executeSerializedSavePipeline({
+    required bool rethrowErrors,
+  }) async {
+    while (_activeSaveFuture != null) {
+      await _activeSaveFuture;
+      if (_isDisposed) return;
+    }
+
+    if (!controller.state.isDirty) return;
+
+    final completer = Completer<void>();
+    _activeSaveFuture = completer.future;
+
+    _activeSaveCount++;
+    if (_activeSaveCount > _peakSaveCount) {
+      _peakSaveCount = _activeSaveCount;
+    }
+
+    final snapshotToSave = controller.currentScene;
+    final sessionSceneId = snapshotToSave.id;
+
+    try {
+      await repository.save(snapshotToSave);
+
+      _lastError = null;
+
+      // Session Guard & Snapshot-Aware Baseline Update
+      if (!_isDisposed && controller.currentScene.id == sessionSceneId) {
+        controller.markPersistedSnapshot(snapshotToSave);
+      }
+    } catch (e, st) {
+      _lastError = e;
+      if (onError != null) {
+        onError!(e, st);
+      }
+      if (rethrowErrors) {
+        rethrow;
+      }
+    } finally {
+      _activeSaveCount--;
+      completer.complete();
+      _activeSaveFuture = null;
+
+      // If user edited during save (creating new dirty state C), run follow-up save cycle if needed
+      if (!_isDisposed &&
+          controller.state.isDirty &&
+          controller.currentScene.id == sessionSceneId) {
+        if (!rethrowErrors) {
+          _scheduleDebouncedSave();
+        }
+      }
     }
   }
 

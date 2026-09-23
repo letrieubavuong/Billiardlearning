@@ -445,7 +445,7 @@ void main() {
               tipOffset: const Vec2(0.1, -0.2),
               powerIsResolved: false,
             ),
-            presentationConfig: const ScenePresentationConfig(
+            presentationConfig: ScenePresentationConfig(
               legacySystemIndex: 2,
               legacyViewTypeIndex: 3,
               labelFontSize: 16.5,

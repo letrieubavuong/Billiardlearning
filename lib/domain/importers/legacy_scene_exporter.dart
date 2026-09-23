@@ -81,7 +81,13 @@ class LegacySceneExporter {
 
     // 2. Process Trajectories
     final paths = <String, dynamic>{};
-    final pathColors = <String, dynamic>{};
+    final legacyColors = scene.presentationConfig?.legacyPathColors;
+    final pathColors = <String, dynamic>{
+      'white': hexToColorInt(legacyColors?['white'], 0xB3FFFFFF),
+      'yellow': hexToColorInt(legacyColors?['yellow'], 0xFFFFEB3B),
+      'red': hexToColorInt(legacyColors?['red'], 0xFFF44336),
+      'free': hexToColorInt(legacyColors?['free'], 0xFF2196F3),
+    };
     final freePathColors = <int>[];
     final freePathsList = <List<List<double>>>[];
 
@@ -169,13 +175,21 @@ class LegacySceneExporter {
     }
 
     // 4. Cue Instruction / Effet
+    Map<String, dynamic>? effetMap;
+    if (scene.presentationConfig?.rawEffetData != null) {
+      effetMap = Map<String, dynamic>.from(
+        scene.presentationConfig!.rawEffetData!,
+      );
+    }
     if (scene.cueInstruction != null) {
-      map['effet'] = {
-        'effet': [
-          scene.cueInstruction!.tipOffset.x,
-          scene.cueInstruction!.tipOffset.y,
-        ],
-      };
+      effetMap ??= <String, dynamic>{};
+      effetMap['effet'] = [
+        scene.cueInstruction!.tipOffset.x,
+        scene.cueInstruction!.tipOffset.y,
+      ];
+    }
+    if (effetMap != null && effetMap.isNotEmpty) {
+      map['effet'] = effetMap;
     }
 
     // 5. Presentation Config

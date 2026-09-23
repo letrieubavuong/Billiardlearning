@@ -425,10 +425,18 @@ class LegacySceneImporter {
 
     // Top-level independent validation of pathColors & freePathColors
     Map? validatedPathColors;
+    Map<String, String>? legacyPathColorsMap;
     if (json.containsKey('pathColors')) {
       final rawPathColors = json['pathColors'];
       if (rawPathColors is Map) {
         validatedPathColors = rawPathColors;
+        legacyPathColorsMap = <String, String>{};
+        rawPathColors.forEach((key, val) {
+          final colorHex = parseColorHex(val, 'pathColors.$key', warnings);
+          if (colorHex != null) {
+            legacyPathColorsMap![key.toString()] = colorHex;
+          }
+        });
       } else {
         warnings.add(
           LegacyImportWarning(
@@ -753,10 +761,12 @@ class LegacySceneImporter {
 
     // 5. Cue Instruction & Deferred Effet Fields
     CueInstruction? cueInstruction;
+    Map<String, dynamic>? rawEffetData;
     if (json.containsKey('effet')) {
       final rawEffet = json['effet'];
       if (rawEffet is Map) {
         final effetMap = rawEffet;
+        rawEffetData = Map<String, dynamic>.from(effetMap);
 
         Vec2 tipOffset = Vec2.zero;
         if (effetMap.containsKey('effet')) {
@@ -878,6 +888,8 @@ class LegacySceneImporter {
       legacySystemIndex: systemIndex,
       legacyViewTypeIndex: viewTypeIndex,
       labelFontSize: labelFontSize,
+      rawEffetData: rawEffetData,
+      legacyPathColors: legacyPathColorsMap,
     );
 
     final now = DateTime.now();

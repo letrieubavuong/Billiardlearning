@@ -81,7 +81,7 @@ class SceneEditorController {
       trajectories: const [],
       annotations: const [],
       cueInstruction: null,
-      presentationConfig: const ScenePresentationConfig(),
+      presentationConfig: ScenePresentationConfig(),
       source: SceneSource.manual,
       status: SceneStatus.active,
       version: 1,
@@ -207,6 +207,10 @@ class SceneEditorController {
       }
     }
     return true;
+  }
+
+  static bool areScenesIdentical(BilliardScene a, BilliardScene b) {
+    return _areScenesIdentical(a, b);
   }
 
   static SceneEditorSelection sanitizeSelection(
@@ -788,7 +792,7 @@ class SceneEditorController {
     double? labelFontSize,
   }) {
     final currentConfig =
-        _state.scene.presentationConfig ?? const ScenePresentationConfig();
+        _state.scene.presentationConfig ?? ScenePresentationConfig();
     final updatedConfig = ScenePresentationConfig(
       legacySystemIndex: legacySystemIndex ?? currentConfig.legacySystemIndex,
       legacyViewTypeIndex:
@@ -851,11 +855,23 @@ class SceneEditorController {
     _notifyListeners();
   }
 
+  BilliardScene get savedBaseline => _savedBaseline;
+
+  /// Updates the saved baseline to [persistedScene] and recomputes dirty state.
+  ///
+  /// If the current editor scene differs from [persistedScene] (e.g. user edited during save),
+  /// [isDirty] remains true.
+  void markPersistedSnapshot(BilliardScene persistedScene) {
+    final frozen = _freezeScene(persistedScene);
+    _savedBaseline = frozen;
+    final isDirty = !_areScenesIdentical(_state.scene, _savedBaseline);
+    _state = _state.copyWith(isDirty: isDirty);
+    _notifyListeners();
+  }
+
   /// Sets the current scene state as the saved baseline (`isDirty = false`).
   void markSaved() {
-    _savedBaseline = _state.scene;
-    _state = _state.copyWith(isDirty: false);
-    _notifyListeners();
+    markPersistedSnapshot(_state.scene);
   }
 
   /// Loads [scene] as a new editor session baseline.
