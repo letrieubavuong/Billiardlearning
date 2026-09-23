@@ -1,0 +1,8 @@
+﻿{
+  "project": "Billiardlearning Autonomous Pipeline",
+  "phases": [
+    {"phase": 0, "name": "Audit and Baseline", "status": "COMPLETED"},
+    {"phase": 1, "name": "Canonical State & Tasks", "status": "IN_PROGRESS"},
+    {"phase": 2, "name": "Git Verifier", "status": "PENDING"}
+  ]
+}

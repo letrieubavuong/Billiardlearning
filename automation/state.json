@@ -1,0 +1,6 @@
+{
+  "current_phase": "PHASE_0",
+  "status": "AUDITED",
+  "reviewer_provider": "GOOGLE_AI_STUDIO",
+  "model": "gemini-2.5-flash"
+}
