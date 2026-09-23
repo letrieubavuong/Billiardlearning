@@ -27,31 +27,37 @@ void main() {
       expect(state.errorMessage, isNull);
     });
 
-    test('copyWith updates specified fields while keeping unchanged fields', () {
-      final now = DateTime.utc(2026, 9, 23);
-      final initialScene = BilliardScene(
-        id: 'scene-1',
-        name: 'Test Scene',
-        createdAt: now,
-        updatedAt: now,
-      );
+    test(
+      'copyWith updates specified fields while keeping unchanged fields',
+      () {
+        final now = DateTime.utc(2026, 9, 23);
+        final initialScene = BilliardScene(
+          id: 'scene-1',
+          name: 'Test Scene',
+          createdAt: now,
+          updatedAt: now,
+        );
 
-      final state = SceneEditorState(scene: initialScene);
+        final state = SceneEditorState(scene: initialScene);
 
-      final updatedState = state.copyWith(
-        activeTool: SceneEditorTool.ball,
-        selection: const SceneEditorSelection.ball('ball-1'),
-        isDirty: true,
-        canUndo: true,
-      );
+        final updatedState = state.copyWith(
+          activeTool: SceneEditorTool.ball,
+          selection: const SceneEditorSelection.ball('ball-1'),
+          isDirty: true,
+          canUndo: true,
+        );
 
-      expect(updatedState.scene, equals(initialScene));
-      expect(updatedState.activeTool, equals(SceneEditorTool.ball));
-      expect(updatedState.selection, equals(const SceneEditorSelection.ball('ball-1')));
-      expect(updatedState.isDirty, isTrue);
-      expect(updatedState.canUndo, isTrue);
-      expect(updatedState.canRedo, isFalse);
-    });
+        expect(updatedState.scene, equals(initialScene));
+        expect(updatedState.activeTool, equals(SceneEditorTool.ball));
+        expect(
+          updatedState.selection,
+          equals(const SceneEditorSelection.ball('ball-1')),
+        );
+        expect(updatedState.isDirty, isTrue);
+        expect(updatedState.canUndo, isTrue);
+        expect(updatedState.canRedo, isFalse);
+      },
+    );
 
     test('equality and hashCode semantics', () {
       final now = DateTime.utc(2026, 9, 23);
@@ -62,9 +68,18 @@ void main() {
         updatedAt: now,
       );
 
-      final state1 = SceneEditorState(scene: scene, activeTool: SceneEditorTool.move);
-      final state2 = SceneEditorState(scene: scene, activeTool: SceneEditorTool.move);
-      final state3 = SceneEditorState(scene: scene, activeTool: SceneEditorTool.delete);
+      final state1 = SceneEditorState(
+        scene: scene,
+        activeTool: SceneEditorTool.move,
+      );
+      final state2 = SceneEditorState(
+        scene: scene,
+        activeTool: SceneEditorTool.move,
+      );
+      final state3 = SceneEditorState(
+        scene: scene,
+        activeTool: SceneEditorTool.delete,
+      );
 
       expect(state1, equals(state2));
       expect(state1.hashCode, equals(state2.hashCode));

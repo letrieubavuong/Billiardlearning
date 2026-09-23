@@ -9,7 +9,9 @@ class SceneEditorHistory {
   final List<BilliardScene> _redoStack = [];
 
   SceneEditorHistory({this.maxHistory = 100}) {
-    assert(maxHistory > 0, 'maxHistory must be positive');
+    if (maxHistory <= 0) {
+      throw ArgumentError('maxHistory must be positive');
+    }
   }
 
   bool get canUndo => _undoStack.isNotEmpty;

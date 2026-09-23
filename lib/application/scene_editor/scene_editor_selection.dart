@@ -21,34 +21,37 @@ class SceneEditorSelection {
   });
 
   const SceneEditorSelection.none()
-      : type = SceneEditorSelectionType.none,
-        targetId = null,
-        pointIndex = null;
+    : type = SceneEditorSelectionType.none,
+      targetId = null,
+      pointIndex = null;
 
   const SceneEditorSelection.ball(String ballId)
-      : type = SceneEditorSelectionType.ball,
-        targetId = ballId,
-        pointIndex = null;
+    : type = SceneEditorSelectionType.ball,
+      targetId = ballId,
+      pointIndex = null;
 
   const SceneEditorSelection.trajectory(String trajectoryId)
-      : type = SceneEditorSelectionType.trajectory,
-        targetId = trajectoryId,
-        pointIndex = null;
+    : type = SceneEditorSelectionType.trajectory,
+      targetId = trajectoryId,
+      pointIndex = null;
 
-  const SceneEditorSelection.trajectoryPoint(String trajectoryId, int pointIndex)
-      : type = SceneEditorSelectionType.trajectoryPoint,
-        targetId = trajectoryId,
-        pointIndex = pointIndex;
+  const SceneEditorSelection.trajectoryPoint(
+    String trajectoryId,
+    int pointIndex,
+  ) : type = SceneEditorSelectionType.trajectoryPoint,
+      targetId = trajectoryId,
+      pointIndex = pointIndex;
 
   const SceneEditorSelection.annotation(String annotationId)
-      : type = SceneEditorSelectionType.annotation,
-        targetId = annotationId,
-        pointIndex = null;
+    : type = SceneEditorSelectionType.annotation,
+      targetId = annotationId,
+      pointIndex = null;
 
   bool get isNone => type == SceneEditorSelectionType.none;
   bool get isBall => type == SceneEditorSelectionType.ball;
   bool get isTrajectory => type == SceneEditorSelectionType.trajectory;
-  bool get isTrajectoryPoint => type == SceneEditorSelectionType.trajectoryPoint;
+  bool get isTrajectoryPoint =>
+      type == SceneEditorSelectionType.trajectoryPoint;
   bool get isAnnotation => type == SceneEditorSelectionType.annotation;
 
   @override

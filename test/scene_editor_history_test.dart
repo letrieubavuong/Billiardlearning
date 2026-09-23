@@ -13,10 +13,30 @@ void main() {
 
     setUp(() {
       now = DateTime.utc(2026, 9, 23);
-      sceneA = BilliardScene(id: '1', name: 'Scene A', createdAt: now, updatedAt: now);
-      sceneB = BilliardScene(id: '1', name: 'Scene B', createdAt: now, updatedAt: now);
-      sceneC = BilliardScene(id: '1', name: 'Scene C', createdAt: now, updatedAt: now);
-      sceneD = BilliardScene(id: '1', name: 'Scene D', createdAt: now, updatedAt: now);
+      sceneA = BilliardScene(
+        id: '1',
+        name: 'Scene A',
+        createdAt: now,
+        updatedAt: now,
+      );
+      sceneB = BilliardScene(
+        id: '1',
+        name: 'Scene B',
+        createdAt: now,
+        updatedAt: now,
+      );
+      sceneC = BilliardScene(
+        id: '1',
+        name: 'Scene C',
+        createdAt: now,
+        updatedAt: now,
+      );
+      sceneD = BilliardScene(
+        id: '1',
+        name: 'Scene D',
+        createdAt: now,
+        updatedAt: now,
+      );
     });
 
     test('initial history stack is empty', () {
@@ -25,6 +45,11 @@ void main() {
       expect(history.canRedo, isFalse);
       expect(history.undoCount, equals(0));
       expect(history.redoCount, equals(0));
+    });
+
+    test('validates maxHistory <= 0 throws ArgumentError in release mode', () {
+      expect(() => SceneEditorHistory(maxHistory: 0), throwsArgumentError);
+      expect(() => SceneEditorHistory(maxHistory: -1), throwsArgumentError);
     });
 
     test('push adds to undo stack and clears redo stack', () {
@@ -81,10 +106,30 @@ void main() {
     test('max history bound limit discards oldest snapshots', () {
       final history = SceneEditorHistory(maxHistory: 3);
 
-      final s1 = BilliardScene(id: '1', name: 'S1', createdAt: now, updatedAt: now);
-      final s2 = BilliardScene(id: '1', name: 'S2', createdAt: now, updatedAt: now);
-      final s3 = BilliardScene(id: '1', name: 'S3', createdAt: now, updatedAt: now);
-      final s4 = BilliardScene(id: '1', name: 'S4', createdAt: now, updatedAt: now);
+      final s1 = BilliardScene(
+        id: '1',
+        name: 'S1',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final s2 = BilliardScene(
+        id: '1',
+        name: 'S2',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final s3 = BilliardScene(
+        id: '1',
+        name: 'S3',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final s4 = BilliardScene(
+        id: '1',
+        name: 'S4',
+        createdAt: now,
+        updatedAt: now,
+      );
 
       history.push(s1);
       history.push(s2);
