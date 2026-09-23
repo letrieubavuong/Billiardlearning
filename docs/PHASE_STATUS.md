@@ -7,7 +7,7 @@
 | 1 | Repository + SQLite Architecture | DONE | Phase 1 repository & SQLite architecture approved & pass |
 | 2 | Scene Model + Coordinate System | DONE | External review PASS; coordinate engine, real legacy importer, malformed-payload hardening and mapper compatibility verified |
 | 3 | Scene Renderer Refactor | REVIEW | Renderers extracted to lib/rendering/scene/, viewport transforms, DTOs & tests pass |
-| 4 | Scene Editor Migration | IN_PROGRESS | Phase 4A Editor Core pure Dart implemented & tested; 4B/4C/4D deferred |
+| 4 | Scene Editor Migration | IN_PROGRESS | Phase 4A PASS; Phase 4B PASS; Phase 4C READY FOR EXTERNAL REVIEW; Phase 4D NOT_STARTED |
 | 5 | Teaching Trajectory + Animation | NOT_STARTED | |
 | 6 | Lesson Domain + Lesson Builder | NOT_STARTED | |
 | 7 | Scene Sharing + Versioning | NOT_STARTED | |
