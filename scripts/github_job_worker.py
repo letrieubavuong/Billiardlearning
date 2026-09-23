@@ -1296,6 +1296,7 @@ def run_execute_pipeline(
         branch=branch_name,
         commit_sha=commit_sha,
         baseline_sha=baseline_sha,
+        ci_status="awaiting_discovery",
     )
 
     try:
@@ -1804,7 +1805,16 @@ def main():
     ):
         if not isinstance(record, dict):
             continue
-        if record.get("status") in {"GIT_PUSHED", "CI_PENDING"}:
+        status = record.get("status")
+
+        if status == "CI_PENDING":
+            poll_ci_for_issue(state, int(issue_key))
+            return
+
+        if (
+            status == "GIT_PUSHED"
+            and record.get("ci_status") == "awaiting_discovery"
+        ):
             poll_ci_for_issue(state, int(issue_key))
             return
 
