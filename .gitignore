@@ -48,3 +48,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# AI-Bridge runtime state
+/automation/github_worker_state.json
