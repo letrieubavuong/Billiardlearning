@@ -1,6 +1,7 @@
 import json
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -36,6 +37,11 @@ CONTROL_REPO = (
     "Billiardlearning-AI-Control"
 )
 
+CODE_REPO = "letrieubavuong/Billiardlearning"
+CI_WORKFLOW = "Billiardlearning CI"
+CI_DISCOVERY_TIMEOUT_SECONDS = 120
+CI_DISCOVERY_POLL_SECONDS = 5
+
 TRUSTED_GITHUB_USER = "letrieubavuong"
 
 EXPECTED_PROTOCOL = "AGBRIDGE/1.0"
@@ -68,7 +74,8 @@ TERMINAL_STATUSES = {
     "SUCCESS",
     "BLOCKED",
     "FAILED",
-    "GIT_PUSHED",
+    "CI_SUCCESS",
+    "CI_FAILED",
 }
 
 
@@ -131,8 +138,8 @@ def clean_issue_body(body):
     )
 
     for bad_bom in (
-        "ï»¿",
         "Ã¯Â»Â¿",
+        "ÃƒÂ¯Ã‚Â»Ã‚Â¿",
     ):
         body = body.replace(
             bad_bom,
@@ -264,6 +271,9 @@ def set_issue_status(
     branch=None,
     commit_sha=None,
     baseline_sha=None,
+    ci_run_id=None,
+    ci_status=None,
+    ci_conclusion=None,
 ):
     record = {
         "status": status,
@@ -294,6 +304,15 @@ def set_issue_status(
         record[
             "baseline_sha"
         ] = baseline_sha
+
+    if ci_run_id is not None:
+        record["ci_run_id"] = ci_run_id
+
+    if ci_status:
+        record["ci_status"] = ci_status
+
+    if ci_conclusion:
+        record["ci_conclusion"] = ci_conclusion
 
     state["jobs"][
         str(issue_number)
@@ -684,6 +703,121 @@ def inspect_job_changes(
     )
 
     return actual_job_changes
+
+
+# ============================================================
+# GitHub Actions CI
+# ============================================================
+
+def find_ci_run_for_commit(commit_sha):
+    raw = run_gh([
+        "run", "list",
+        "--repo", CODE_REPO,
+        "--workflow", CI_WORKFLOW,
+        "--limit", "50",
+        "--json", "databaseId,headSha,status,conclusion,url",
+    ])
+    runs = json.loads(raw)
+    for run in runs:
+        if run.get("headSha") == commit_sha:
+            return run
+    return None
+
+
+def wait_for_ci_run_discovery(commit_sha):
+    deadline = time.monotonic() + CI_DISCOVERY_TIMEOUT_SECONDS
+    while time.monotonic() < deadline:
+        run = find_ci_run_for_commit(commit_sha)
+        if run is not None:
+            return run
+        time.sleep(CI_DISCOVERY_POLL_SECONDS)
+    return None
+
+
+def report_ci_pending(issue_number, job_id, branch, commit_sha, ci_run_id=None):
+    lines = [
+        "GitHub Actions CI is pending.", "",
+        f"- Job: `{job_id}`",
+        "- Status: `CI_PENDING`",
+        f"- Branch: `{branch}`",
+        f"- Commit: `{commit_sha}`",
+    ]
+    if ci_run_id is not None:
+        lines.append(f"- CI Run: `{ci_run_id}`")
+    lines.append(f"- Checked: `{utc_now()}`")
+    comment_issue(issue_number, "\n".join(lines))
+
+
+def report_ci_terminal(issue_number, job_id, branch, commit_sha, run, success):
+    status = "CI_SUCCESS" if success else "CI_FAILED"
+    conclusion = run.get("conclusion") or "unknown"
+    lines = [
+        "GitHub Actions CI completed.", "",
+        f"- Job: `{job_id}`",
+        f"- Status: `{status}`",
+        f"- Branch: `{branch}`",
+        f"- Commit: `{commit_sha}`",
+        f"- CI Run: `{run.get('databaseId')}`",
+        f"- Conclusion: `{conclusion}`",
+        f"- Completed: `{utc_now()}`",
+    ]
+    if not success:
+        lines.extend(["", "No automatic retry will be performed."])
+    comment_issue(issue_number, "\n".join(lines))
+
+
+def poll_ci_for_issue(state, issue_number):
+    record = state["jobs"].get(str(issue_number)) or {}
+    job_id = record.get("job_id") or "UNKNOWN"
+    branch = record.get("branch")
+    commit_sha = record.get("commit_sha")
+    baseline_sha = record.get("baseline_sha")
+
+    if not commit_sha or not branch:
+        message = "CI_PENDING record is missing branch or commit_sha."
+        set_issue_status(state, issue_number, "FAILED", job_id=job_id,
+                         message=message, branch=branch, commit_sha=commit_sha,
+                         baseline_sha=baseline_sha)
+        try:
+            report_failed(issue_number, job_id, message, branch=branch)
+        except Exception as exc:
+            print(f"[-] Could not post FAILED comment: {exc}")
+        return
+
+    print(f"[*] Checking CI for {job_id}...")
+    print(f"[+] Commit: {commit_sha}")
+    run = find_ci_run_for_commit(commit_sha)
+    if run is None:
+        print("[*] CI run has not appeared yet. Keeping CI_PENDING.")
+        return
+
+    run_id = run.get("databaseId")
+    ci_status = run.get("status")
+    conclusion = run.get("conclusion")
+    print(f"[+] CI Run: {run_id}")
+    print(f"[+] CI Status: {ci_status}")
+    print(f"[+] CI Conclusion: {conclusion}")
+
+    if ci_status != "completed":
+        set_issue_status(state, issue_number, "CI_PENDING", job_id=job_id,
+                         message="GitHub Actions CI is still running.", branch=branch,
+                         commit_sha=commit_sha, baseline_sha=baseline_sha,
+                         ci_run_id=run_id, ci_status=ci_status,
+                         ci_conclusion=conclusion)
+        return
+
+    success = conclusion == "success"
+    terminal = "CI_SUCCESS" if success else "CI_FAILED"
+    set_issue_status(state, issue_number, terminal, job_id=job_id,
+                     message=f"GitHub Actions completed with conclusion: {conclusion}.",
+                     branch=branch, commit_sha=commit_sha,
+                     baseline_sha=baseline_sha, ci_run_id=run_id,
+                     ci_status=ci_status, ci_conclusion=conclusion)
+    try:
+        report_ci_terminal(issue_number, job_id, branch, commit_sha, run, success)
+    except Exception as exc:
+        print(f"[-] Could not post {terminal} comment: {exc}")
+    print(f"[+] {terminal}")
 
 
 # ============================================================
@@ -1180,6 +1314,29 @@ def run_execute_pipeline(
             f"{exc}"
         )
 
+    print("[*] Looking for GitHub Actions CI run...")
+    ci_run = wait_for_ci_run_discovery(commit_sha)
+    ci_run_id = ci_run.get("databaseId") if ci_run else None
+    ci_status = ci_run.get("status") if ci_run else "not_found_yet"
+    ci_conclusion = ci_run.get("conclusion") if ci_run else None
+
+    set_issue_status(
+        state, issue_number, "CI_PENDING", job_id=job_id,
+        message="Waiting for GitHub Actions CI result.",
+        branch=branch_name, commit_sha=commit_sha, baseline_sha=baseline_sha,
+        ci_run_id=ci_run_id, ci_status=ci_status, ci_conclusion=ci_conclusion,
+    )
+
+    try:
+        report_ci_pending(issue_number, job_id, branch_name, commit_sha, ci_run_id)
+    except Exception as exc:
+        print(f"[-] Could not post CI_PENDING comment: {exc}")
+
+    if ci_run:
+        print(f"[+] CI Run discovered: {ci_run_id} ({ci_status})")
+    else:
+        print("[*] CI run not visible yet; a later worker poll will continue.")
+
     print()
     print(
         "[+] JOB PIPELINE SUCCESS."
@@ -1639,6 +1796,17 @@ def main():
         )
 
         sys.exit(1)
+
+    # Resume CI monitoring before accepting a new execution job.
+    for issue_key, record in sorted(
+        state["jobs"].items(),
+        key=lambda item: int(item[0]) if str(item[0]).isdigit() else 10**18,
+    ):
+        if not isinstance(record, dict):
+            continue
+        if record.get("status") in {"GIT_PUSHED", "CI_PENDING"}:
+            poll_ci_for_issue(state, int(issue_key))
+            return
 
     if not issues:
         print(
