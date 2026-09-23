@@ -270,6 +270,35 @@ void main() {
     },
   );
 
+  test(
+    'presentation/scene_editor layer does not import sqflite, database or raw SQL data sources',
+    () {
+      final presentationDir = Directory('lib/presentation/scene_editor');
+      expect(presentationDir.existsSync(), isTrue);
+
+      final forbiddenImports = [
+        'package:sqflite/',
+        'package:sqflite_common_ffi/',
+        'data/database',
+        'models/database_helper.dart',
+      ];
+
+      final files = presentationDir.listSync(recursive: true).whereType<File>();
+      for (final file in files) {
+        if (file.path.endsWith('.dart')) {
+          final content = file.readAsStringSync();
+          for (final importStr in forbiddenImports) {
+            expect(
+              content.contains(importStr),
+              isFalse,
+              reason: '${file.path} must not import $importStr',
+            );
+          }
+        }
+      }
+    },
+  );
+
   test('analysis_options.yaml does not contain platform exclusions', () {
     final result = Process.runSync('git', ['show', ':analysis_options.yaml']);
     final content = result.exitCode == 0
