@@ -884,6 +884,259 @@ void main() {
     );
 
     testWidgets(
+      'ghostBall tool creates ghost ball on visible playfield (Requirement 16)',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(360, 720);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final controller = SceneEditorController(clock: clock);
+        controller.setTool(SceneEditorTool.ghostBall);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 360,
+                height: 720,
+                child: SceneEditorCanvas(
+                  controller: controller,
+                  isVertical: true,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final viewport = SceneViewport(
+          canvasSize: const Size(360, 720),
+          viewMode: SceneViewMode.full,
+          isVertical: true,
+        );
+
+        final topLeft = tester.getTopLeft(find.byType(SceneEditorCanvas));
+        final tapOffset =
+            topLeft +
+            adapter.tablePointToLocalOffset(
+              const TablePoint(0.5, 0.5),
+              viewport,
+              true,
+            );
+        await tester.tapAt(tapOffset);
+        await tester.pumpAndSettle();
+
+        expect(controller.currentScene.balls.length, equals(1));
+        expect(controller.currentScene.balls.first.ballType, equals('ghost'));
+        expect(controller.state.isDirty, isTrue);
+        expect(controller.state.canUndo, isTrue);
+      },
+    );
+
+    testWidgets(
+      'extraBall tool creates extra ball on visible playfield and is not treated as ghost',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(360, 720);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final controller = SceneEditorController(clock: clock);
+        controller.setTool(SceneEditorTool.extraBall);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 360,
+                height: 720,
+                child: SceneEditorCanvas(
+                  controller: controller,
+                  isVertical: true,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final viewport = SceneViewport(
+          canvasSize: const Size(360, 720),
+          viewMode: SceneViewMode.full,
+          isVertical: true,
+        );
+
+        final topLeft = tester.getTopLeft(find.byType(SceneEditorCanvas));
+        final tapOffset =
+            topLeft +
+            adapter.tablePointToLocalOffset(
+              const TablePoint(0.5, 0.5),
+              viewport,
+              true,
+            );
+        await tester.tapAt(tapOffset);
+        await tester.pumpAndSettle();
+
+        expect(controller.currentScene.balls.length, equals(1));
+        final addedBall = controller.currentScene.balls.first;
+        expect(addedBall.ballType, equals('extra'));
+        expect(addedBall.ballType, isNot(equals('ghost')));
+        expect(controller.state.isDirty, isTrue);
+        expect(controller.state.canUndo, isTrue);
+      },
+    );
+
+    testWidgets(
+      'trajectory tool creates new trajectory line on tap A and appends point on tap B',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(360, 720);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final controller = SceneEditorController(clock: clock);
+        controller.setTool(SceneEditorTool.trajectory);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 360,
+                height: 720,
+                child: SceneEditorCanvas(
+                  controller: controller,
+                  isVertical: true,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final viewport = SceneViewport(
+          canvasSize: const Size(360, 720),
+          viewMode: SceneViewMode.full,
+          isVertical: true,
+        );
+
+        final topLeft = tester.getTopLeft(find.byType(SceneEditorCanvas));
+
+        // Tap A -> creates trajectory 1 with one point
+        final ptA = const TablePoint(0.3, 0.3);
+        await tester.tapAt(
+          topLeft + adapter.tablePointToLocalOffset(ptA, viewport, true),
+        );
+        await tester.pumpAndSettle();
+
+        expect(controller.currentScene.trajectories.length, equals(1));
+        expect(
+          controller.currentScene.trajectories.first.points.length,
+          equals(1),
+        );
+
+        // Tap B -> appends second point to trajectory 1
+        final ptB = const TablePoint(0.6, 0.6);
+        await tester.tapAt(
+          topLeft + adapter.tablePointToLocalOffset(ptB, viewport, true),
+        );
+        await tester.pumpAndSettle();
+
+        expect(controller.currentScene.trajectories.length, equals(1));
+        expect(
+          controller.currentScene.trajectories.first.points.length,
+          equals(2),
+        );
+      },
+    );
+
+    testWidgets(
+      'switching away from trajectory tool resets activeTrajectoryId session',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(360, 720);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final controller = SceneEditorController(clock: clock);
+        controller.setTool(SceneEditorTool.trajectory);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 360,
+                height: 720,
+                child: SceneEditorCanvas(
+                  controller: controller,
+                  isVertical: true,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final viewport = SceneViewport(
+          canvasSize: const Size(360, 720),
+          viewMode: SceneViewMode.full,
+          isVertical: true,
+        );
+
+        final topLeft = tester.getTopLeft(find.byType(SceneEditorCanvas));
+
+        // Tap A and B -> Trajectory 1 has 2 points
+        await tester.tapAt(
+          topLeft +
+              adapter.tablePointToLocalOffset(
+                const TablePoint(0.2, 0.2),
+                viewport,
+                true,
+              ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tapAt(
+          topLeft +
+              adapter.tablePointToLocalOffset(
+                const TablePoint(0.4, 0.4),
+                viewport,
+                true,
+              ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(controller.currentScene.trajectories.length, equals(1));
+        expect(
+          controller.currentScene.trajectories.first.points.length,
+          equals(2),
+        );
+
+        // Switch to select, then back to trajectory
+        controller.setTool(SceneEditorTool.select);
+        await tester.pumpAndSettle();
+        controller.setTool(SceneEditorTool.trajectory);
+        await tester.pumpAndSettle();
+
+        // Tap C -> creates Trajectory 2 with 1 point
+        await tester.tapAt(
+          topLeft +
+              adapter.tablePointToLocalOffset(
+                const TablePoint(0.7, 0.7),
+                viewport,
+                true,
+              ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(controller.currentScene.trajectories.length, equals(2));
+        expect(
+          controller.currentScene.trajectories[0].points.length,
+          equals(2),
+        );
+        expect(
+          controller.currentScene.trajectories[1].points.length,
+          equals(1),
+        );
+      },
+    );
+
+    testWidgets(
       'label tool positive flow invokes onLabelRequested and repaints when annotation added (Requirement 17)',
       (WidgetTester tester) async {
         tester.view.physicalSize = const Size(360, 720);
@@ -943,7 +1196,7 @@ void main() {
     );
 
     testWidgets(
-      'delete tool performs separate explicit deletions for ball, annotation, trajectory, and trajectory point (Requirement 18)',
+      'delete tool performs separate explicit UI deletions for ball, annotation, trajectory point, and trajectory line segment (Requirement 18)',
       (WidgetTester tester) async {
         tester.view.physicalSize = const Size(360, 720);
         tester.view.devicePixelRatio = 1.0;
@@ -952,7 +1205,9 @@ void main() {
 
         final ptBall = const TablePoint(0.2, 0.2);
         final ptAnn = const TablePoint(0.8, 0.8);
-        final ptTp = const TablePoint(0.5, 0.5);
+        final ptTp0 = const TablePoint(0.3, 0.3);
+        final ptTp1 = const TablePoint(0.7, 0.7);
+        final ptLineMid = const TablePoint(0.5, 0.5);
 
         final initialScene = BilliardScene(
           id: 'del-all-scene',
@@ -962,10 +1217,7 @@ void main() {
             SceneAnnotation(id: 'a-del', text: 'Del', position: ptAnn),
           ],
           trajectories: [
-            TrajectoryLine(
-              id: 't-del',
-              points: [ptTp, const TablePoint(0.6, 0.6)],
-            ),
+            TrajectoryLine(id: 't-del', points: [ptTp0, ptTp1]),
           ],
           createdAt: fixedTime,
           updatedAt: fixedTime,
@@ -1000,23 +1252,23 @@ void main() {
 
         final topLeft = tester.getTopLeft(find.byType(SceneEditorCanvas));
 
-        // 1. Explicit assertion for deleting ball
+        // 1. Explicit UI assertion for deleting ball
         await tester.tapAt(
           topLeft + adapter.tablePointToLocalOffset(ptBall, viewport, true),
         );
         await tester.pumpAndSettle();
         expect(controller.currentScene.balls, isEmpty);
 
-        // 2. Explicit assertion for deleting annotation
+        // 2. Explicit UI assertion for deleting annotation
         await tester.tapAt(
           topLeft + adapter.tablePointToLocalOffset(ptAnn, viewport, true),
         );
         await tester.pumpAndSettle();
         expect(controller.currentScene.annotations, isEmpty);
 
-        // 3. Explicit assertion for deleting trajectory point (ptTp is trajectory point 0)
+        // 3. Explicit UI assertion for deleting trajectory point (tap control point ptTp0)
         await tester.tapAt(
-          topLeft + adapter.tablePointToLocalOffset(ptTp, viewport, true),
+          topLeft + adapter.tablePointToLocalOffset(ptTp0, viewport, true),
         );
         await tester.pumpAndSettle();
         expect(
@@ -1024,8 +1276,20 @@ void main() {
           equals(1),
         );
 
-        // 4. Explicit assertion for deleting full trajectory line
-        controller.deleteTrajectory('t-del');
+        // 4. Explicit UI assertion for deleting trajectory line segment through SceneEditorCanvas hit-test
+        // Add ptTp0 back so trajectory has distinct points (0.3, 0.3) and (0.7, 0.7)
+        controller.addTrajectoryPoint('t-del', ptTp0);
+        expect(
+          controller.currentScene.trajectories.first.points.length,
+          equals(2),
+        );
+
+        // Tap line segment midpoint away from control points
+        await tester.tapAt(
+          topLeft + adapter.tablePointToLocalOffset(ptLineMid, viewport, true),
+        );
+        await tester.pumpAndSettle();
+
         expect(controller.currentScene.trajectories, isEmpty);
       },
     );

@@ -36,66 +36,62 @@ LegacyRenderAdapter -> SceneRenderModel -> SceneRenderer
 
 ---
 
-## 3. Tool Coverage Verification Checklist
+## 3. Tool Test Coverage
 
 | Tool | Action | Controller Mutation | Tested | Result |
 | :--- | :--- | :--- | :---: | :---: |
 | `select` | Tap hit target | `select(target)` / `clearSelection()` | Yes | PASS |
 | `move` | Select & drag entity | `moveBall`, `moveAnnotation`, `moveTrajectoryPoint` | Yes | PASS |
-| `ball` | Tap playfield | `addBall(type, pos, label, colorHex)` | Yes | PASS |
+| `ball` | Tap playfield | `addBall(type: 'red', pos)` | Yes | PASS |
 | `ghostBall` | Tap playfield | `addBall(ballType: 'ghost', pos)` | Yes | PASS |
 | `extraBall` | Tap playfield | `addBall(ballType: 'extra', pos)` | Yes | PASS |
-| `trajectory` | Tap points | `addTrajectory` / `addTrajectoryPoint` | Yes | PASS |
+| `trajectory` | Tap A then B / reset session | `addTrajectory` / `addTrajectoryPoint` | Yes | PASS |
 | `label` | Tap playfield | `addAnnotation(text, pos)` | Yes | PASS |
 | `cushionNumber` | Tap rail region | `addAnnotation(role: 'cushionNumber', pos)` | Yes | PASS |
-| `delete` | Tap target | `deleteBall`, `deleteAnnotation`, `deleteTrajectory`, `removeTrajectoryPoint` | Yes | PASS |
+| `delete` | Tap target / line segment / point | `deleteBall`, `deleteAnnotation`, `deleteTrajectory`, `removeTrajectoryPoint` | Yes | PASS |
 
 ---
 
-## 4. Requirement Verification Matrix
+## 4. Restored Coverage Details (External Review Closure)
 
-| Req | Requirement Description | Verification Method | Status |
-| :---: | :--- | :--- | :---: |
-| **3** | Pure Dart Application Layer | Architecture Test (`test/architecture_test.dart`) | PASS |
-| **5** | Single Coordinate Engine (`SceneViewport`) | Viewport parity via `LegacyRenderAdapter.sceneToRenderModel` | PASS |
-| **6** | Horizontal Orientation Transform | Inverse painter transform tested across all 8 view modes | PASS |
-| **8** | Playfield Bounds Filtering | Normal hit testing excludes wood rail & hidden crop areas | PASS |
-| **12** | Transient Drag Preview | Ephemeral `SceneEditorInteractionState` during drag | PASS |
-| **14** | Ball Drag | Pan preview -> Single `moveBall` commit at release | PASS |
-| **15** | Annotation Drag | Pan preview -> Single `moveAnnotation` commit at release | PASS |
-| **16** | Trajectory Point Drag | Pan preview -> Single `moveTrajectoryPoint` commit at release | PASS |
-| **17** | Deterministic Hit Priority | `point` > `ball` > `annotation` > `trajectory` > `none` | PASS |
-| **18** | Pixel-Space Hit Testing | Named constants (`ballHitSlopPx`, `pointHitSlopPx`, etc.) | PASS |
-| **19** | Horizontal Hit Testing | Screen-space hit test exactness in horizontal mode | PASS |
-| **20** | Selection Overlay | Non-destructive `CustomPainter` overlay | PASS |
-| **32** | Undo / Redo UI Binding | `SceneEditorToolbar` widget tests (`test/scene_editor_toolbar_test.dart`) | PASS |
-| **34** | Pointer Cancel Safety | `onPanCancel` discards transient state | PASS |
-| **41** | Round-Trip Transform Tests | Exact `TablePoint` ↔ local screen pixel round-trip | PASS |
-| **42** | View Mode Coverage | Tested across all 8 `SceneViewMode` variations | PASS |
-| **43** | Outside Playfield Tap | Rejects taps on wood rails/outside playfield | PASS |
-| **44** | One Drag = One Undo Step | 20 intermediate pan updates commit exactly 1 history step | PASS |
-| **45** | Drag Cancel Test | `panCancel` leaves scene, dirty state, and history untouched | PASS |
-| **49** | Phase 4A Baseline | All Phase 4A unit tests pass | PASS |
-| **50** | Phase 3 Renderer Baseline | Phase 3 viewport/render model/smoke tests pass | PASS |
+1. **`ghostBall` Tool UI Test**: Verified tapping visible playfield with `ghostBall` tool creates ball with `ballType == 'ghost'`, sets `isDirty = true` and `canUndo = true`.
+2. **`extraBall` Tool UI Test**: Verified tapping visible playfield with `extraBall` tool creates ball with `ballType == 'extra'`, and explicitly confirmed `ballType != 'ghost'`.
+3. **Trajectory Create & Append**: Verified tapping point A creates new trajectory line with 1 point, and tapping point B appends 2nd point to the active trajectory.
+4. **Trajectory Session Reset**: Verified switching tool away from `trajectory` (e.g. to `select`) and back to `trajectory` resets `activeTrajectoryId`, creating a new 2nd trajectory line on subsequent tap.
+5. **Trajectory Line Delete through UI**: Verified tapping a visible trajectory line segment away from control points with `delete` tool removes the entire trajectory through `SceneEditorCanvas` hit-test UI interaction.
+6. **Trajectory Point Delete through UI**: Verified tapping a trajectory control point with `delete` tool removes only that control point while keeping geometrically distinct line deletion intact.
 
 ---
 
-## 5. Test Suite Execution Summary
+## 5. Analyzer Verification
 
-- **Total Unit & Widget Tests**: 181 PASS / 0 FAIL
+- **Command**: `flutter analyze`
+- **Exit code**: `1` (due to pre-existing info lints in legacy screens/widgets)
+- **Errors**: `0`
+- **Warnings**: `0`
+- **Infos / Deprecations**: `321` (pre-existing legacy deprecations)
+- **Canonical `analysis_options.yaml`**: `include: package:flutter_lints/flutter.yaml` (0 platform exclusions, clean remote state)
+
+---
+
+## 6. Full Test Verification (Local Results)
+
+- **Total Local Unit & Widget Tests**: 185 PASS / 0 FAIL
+- **Execution Command**: `flutter test`
 
 ```text
-00:35 +181: All tests passed!
+00:37 +185: All tests passed!
 ```
 
+### Key Test Suites:
+- `test/scene_editor_canvas_test.dart`: PASS (15 widget tests)
 - `test/scene_editor_controller_test.dart`: PASS
 - `test/scene_editor_gesture_adapter_test.dart`: PASS
 - `test/scene_editor_hit_tester_test.dart`: PASS
-- `test/scene_editor_canvas_test.dart`: PASS
 - `test/scene_editor_toolbar_test.dart`: PASS
 - `test/scene_editor_history_test.dart`: PASS
 - `test/scene_viewport_test.dart`: PASS
-- `test/architecture_test.dart`: PASS
+- `test/architecture_test.dart`: PASS (13 architectural guard tests)
 - `test/legacy_scene_importer_test.dart`: PASS
 - `test/scene_render_model_test.dart`: PASS
 - `test/scene_renderer_smoke_test.dart`: PASS
@@ -104,9 +100,21 @@ LegacyRenderAdapter -> SceneRenderModel -> SceneRenderer
 - `test/value_objects_test.dart`: PASS
 - `test/widget_test.dart`: PASS
 
+*Note: All results are local verification run results.*
+
 ---
 
-## 6. Deferred Items
+## 7. Phase Status Note
+
+- **Overall Status**: `Phase 4 = IN_PROGRESS`
+- **Phase 4A**: `PASS`
+- **Phase 4B**: `READY FOR EXTERNAL REVIEW`
+- **Phase 4C**: `NOT_STARTED`
+- **Phase 4D**: `NOT_STARTED`
+
+---
+
+## 8. Deferred Items
 - **Phase 4C**: Database persistence, SQLite vNext migration, autosave debounce, DiagramDocumentCodec bridge.
 - **Phase 4D**: Full production replacement/cutover of legacy `DiagramBuilderPage`.
 - **Phase 5**: Teaching Animation & timeline playback.
