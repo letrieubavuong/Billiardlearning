@@ -225,6 +225,51 @@ void main() {
     },
   );
 
+  test(
+    'application/scene_editor layer does not import flutter, sqflite or dart:ui',
+    () {
+      final editorDir = Directory('lib/application/scene_editor');
+      expect(editorDir.existsSync(), isTrue);
+
+      final forbiddenImports = [
+        'package:flutter/',
+        'dart:ui',
+        'package:sqflite/',
+        'package:sqflite_common_ffi/',
+      ];
+
+      final forbiddenSymbols = [
+        'Color',
+        'Offset',
+        'Canvas',
+        'Widget',
+        'BuildContext',
+      ];
+
+      final files = editorDir.listSync(recursive: true).whereType<File>();
+      for (final file in files) {
+        if (file.path.endsWith('.dart')) {
+          final content = file.readAsStringSync();
+          for (final importStr in forbiddenImports) {
+            expect(
+              content.contains("import '$importStr"),
+              isFalse,
+              reason: '${file.path} must not import $importStr',
+            );
+          }
+          for (final symbol in forbiddenSymbols) {
+            final regex = RegExp('\\b$symbol\\b');
+            expect(
+              regex.hasMatch(content),
+              isFalse,
+              reason: '${file.path} must not use Flutter UI symbol $symbol',
+            );
+          }
+        }
+      }
+    },
+  );
+
   test('analysis_options.yaml does not contain platform exclusions', () {
     final result = Process.runSync('git', ['show', ':analysis_options.yaml']);
     final content = result.exitCode == 0
