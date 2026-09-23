@@ -130,21 +130,22 @@ def clean_issue_body(body):
     if body is None:
         return ""
 
-    body = body.strip()
+    if not isinstance(body, str):
+        body = str(body)
 
-    body = body.replace(
-        "\ufeff",
-        "",
-    )
+    # Remove leading whitespace and BOM artifacts before JSON parsing.
+    body = body.lstrip()
+
+    while body.startswith("\ufeff"):
+        body = body[1:].lstrip()
 
     for bad_bom in (
         "Ã¯Â»Â¿",
         "ÃƒÂ¯Ã‚Â»Ã‚Â¿",
+        "ï»¿",
     ):
-        body = body.replace(
-            bad_bom,
-            "",
-        )
+        while body.startswith(bad_bom):
+            body = body[len(bad_bom):].lstrip()
 
     return body.strip()
 
@@ -1863,6 +1864,19 @@ def main():
                 "is disabled."
             )
 
+            continue
+
+        # Legacy jobs may have GIT_PUSHED from before CI tracking existed.
+        # They have no CI marker and must never be executed again.
+        record = state["jobs"].get(str(number)) or {}
+        if (
+            status == "GIT_PUSHED"
+            and record.get("ci_status") != "awaiting_discovery"
+        ):
+            print(
+                f"[*] Skipping legacy "
+                f"GIT_PUSHED issue #{number}."
+            )
             continue
 
         pending_issue = issue
