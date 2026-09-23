@@ -17,6 +17,11 @@ concurrency:
   group: billiardlearning-ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  ANALYZE_BASELINE_ERRORS: "0"
+  ANALYZE_BASELINE_WARNINGS: "17"
+  ANALYZE_BASELINE_INFOS: "304"
+
 jobs:
   flutter-ci:
     name: Flutter Analyze and Test
@@ -42,8 +47,62 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Analyze
-        run: flutter analyze
+      - name: Analyze against legacy baseline
+        shell: bash
+        run: |
+          set +e
+          flutter analyze > analyze.txt 2>&1
+          ANALYZE_EXIT=$?
+          set -e
+
+          cat analyze.txt
+
+          ERRORS=$(grep -E -c '^[[:space:]]*error[[:space:]]+-' analyze.txt || true)
+          WARNINGS=$(grep -E -c '^[[:space:]]*warning[[:space:]]+-' analyze.txt || true)
+          INFOS=$(grep -E -c '^[[:space:]]*info[[:space:]]+-' analyze.txt || true)
+
+          TOTAL=$((ERRORS + WARNINGS + INFOS))
+
+          echo ""
+          echo "=== ANALYZER BASELINE CHECK ==="
+          echo "flutter analyze exit code: $ANALYZE_EXIT"
+          echo ""
+          echo "Current:"
+          echo "  Errors   : $ERRORS"
+          echo "  Warnings : $WARNINGS"
+          echo "  Infos    : $INFOS"
+          echo "  Total    : $TOTAL"
+          echo ""
+          echo "Allowed baseline:"
+          echo "  Errors   : $ANALYZE_BASELINE_ERRORS"
+          echo "  Warnings : $ANALYZE_BASELINE_WARNINGS"
+          echo "  Infos    : $ANALYZE_BASELINE_INFOS"
+
+          FAILED=0
+
+          if [ "$ERRORS" -gt "$ANALYZE_BASELINE_ERRORS" ]; then
+            echo "::error::Analyzer errors increased from $ANALYZE_BASELINE_ERRORS to $ERRORS."
+            FAILED=1
+          fi
+
+          if [ "$WARNINGS" -gt "$ANALYZE_BASELINE_WARNINGS" ]; then
+            echo "::error::Analyzer warnings increased from $ANALYZE_BASELINE_WARNINGS to $WARNINGS."
+            FAILED=1
+          fi
+
+          if [ "$INFOS" -gt "$ANALYZE_BASELINE_INFOS" ]; then
+            echo "::error::Analyzer infos increased from $ANALYZE_BASELINE_INFOS to $INFOS."
+            FAILED=1
+          fi
+
+          if [ "$FAILED" -ne 0 ]; then
+            echo ""
+            echo "ANALYZER_BASELINE_RESULT=FAIL"
+            exit 1
+          fi
+
+          echo ""
+          echo "ANALYZER_BASELINE_RESULT=PASS"
 
       - name: Run tests
         run: flutter test
