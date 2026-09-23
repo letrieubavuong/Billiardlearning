@@ -25,37 +25,28 @@ Toàn bộ các yêu cầu kiến trúc, sửa lỗi phản hồi từ External 
 * `lib/application/scene_editor/scene_editor_selection.dart` [NEW]
 * `lib/application/scene_editor/scene_editor_state.dart` [NEW]
 * `lib/application/scene_editor/scene_editor_history.dart` [MODIFY - Validate maxHistory <= 0]
-* `lib/application/scene_editor/scene_editor_controller.dart` [MODIFY - Factory single baseline, immutable snapshots, semantic equality, sanitizeSelection, target exceptions]
+* `lib/application/scene_editor/scene_editor_controller.dart` [MODIFY - Factory single baseline, immutable snapshots, semantic equality, sanitizeSelection, target exceptions, deep teachingTimeline freeze, point selection drift fix]
 * `test/scene_editor_state_test.dart` [NEW]
 * `test/scene_editor_history_test.dart` [MODIFY]
-* `test/scene_editor_controller_test.dart` [MODIFY - Added regression tests A through J]
+* `test/scene_editor_controller_test.dart` [MODIFY - Added regression tests for timeline freeze and point selection drift]
 * `test/architecture_test.dart` [MODIFY - Guard test cho application/scene_editor]
 * `docs/reports/PHASE_4A_VERIFICATION_REPORT.md` [MODIFY]
 
 ---
 
-## External Review Hardening
+## Final External Review Hardening
 
-Nhận phản hồi từ đợt review code ngoại viện, lớp Editor Core đã được gia cố toàn diện các tính năng sau:
+Nhận phản hồi từ đợt review code ngoại viện thứ hai, lớp Editor Core đã được xử lý dứt điểm 2 blockers còn lại:
 
-1. **Fix Double Initial Scene Creation**:
-   - Sử dụng factory constructor `SceneEditorController(...)` để khởi tạo `effectiveScene` duy nhất khi `initialScene == null`. `_savedBaseline` và `_state.scene` tham chiếu chung 1 snapshot ban đầu, đảm bảo tính nhất quán ID sau khi undo.
-2. **Immutable Snapshot Policy**:
-   - Mọi danh sách tập hợp trong `BilliardScene` (`balls`, `trajectories`, `points`, `annotations`) được đóng gói qua `List.unmodifiable(...)`.
-   - Các thao tác gọi ngoài như `controller.currentScene.balls.add(...)` hoặc `controller.currentScene.trajectories.first.points.add(...)` sẽ tung ngoại lệ `UnsupportedError`.
-3. **Input Scene Normalization**:
-   - `initialScene`, `loadScene(scene)` và các snapshot được freeze thành tập hợp bất biến, ngăn ngừa rò rỉ biến đổi từ caller ngoài qua danh sách tham chiếu gốc.
-4. **updateBall Semantic No-Op Detection**:
-   - So sánh ngữ nghĩa chi tiết đối tượng bi (`id`, `ballType`, `position`, `label`, `colorHex`, `rotation`, `legacyType`) thay vì so sánh danh tính identity `==`. Thao tác với giá trị không đổi sẽ không tạo undo history, không đổi `updatedAt`, và không dirty state.
-5. **Dirty State Tracking via Semantic Comparison**:
-   - Theo dõi bối cảnh sửa đổi `isDirty` thông qua hàm so sánh ngữ nghĩa `_areScenesIdentical` mà không can thiệp thay đổi danh tính domain entity `BilliardScene`.
-6. **Selection Sanitation (`sanitizeSelection`)**:
-   - Tự động kiểm tra tính hợp lệ của vùng chọn sau `undo`, `redo`, `loadScene`, và xóa đối tượng. Nếu đối tượng hoặc chỉ số điểm đường chạy (`pointIndex`) không còn tồn tại, selection tự động reset về `SceneEditorSelection.none()`.
-7. **Consistent Invalid-Command Policy**:
-   - Định nghĩa bộ ngoại lệ thuần Dart: `SceneEditorException`, `SceneEditorTargetNotFoundException`, `SceneEditorInvalidOperationException`.
-   - Các lệnh thao tác tới đối tượng không tồn tại hoặc chỉ số điểm vượt dải index sẽ phát ngoại lệ rõ ràng thay vì im lặng trả về.
-8. **Release-Safe History Validation**:
-   - `SceneEditorHistory(maxHistory: 0)` hoặc negative value sẽ phát ngoại lệ `ArgumentError` cả ở chế độ Release mode.
+1. **Deep Freeze `teachingTimeline`**:
+   - Xây dựng hàm helper đệ quy thuần Dart `_freezeJson()` đóng gói tất cả các đối tượng kiểu Map và List bên trong `teachingTimeline` thành `Map.unmodifiable` và `List.unmodifiable`.
+   - Ngăn chặn mọi hành vi biến đổi dữ liệu timeline từ bên ngoài sau khi nạp vào editor (bảo vệ cả Input Alias lẫn Output Immutability).
+2. **Deep Semantic Comparison for `teachingTimeline`**:
+   - Thêm hàm so sánh đệ quy ngữ nghĩa `_areJsonValuesIdentical()` trong `_areScenesIdentical()`. Hai instance Map/List timeline chứa cùng cấu trúc giá trị sẽ so sánh bằng nhau, tránh việc dirty state bị kích hoạt nhầm.
+3. **TrajectoryPoint Selection Drift Adjustment**:
+   - Khi xóa một point trên đường chạy (`removeTrajectoryPoint`), nếu point đang chọn (`trajectoryPoint`) nằm ở chỉ số sau điểm bị xóa (`selectedIndex > removedIndex`), chỉ số selection tự động lùi về (`selectedIndex - 1`), đảm bảo selection giữ đúng điểm ngữ nghĩa. Nếu xóa đúng điểm đang chọn, selection chuyển thành `none()`.
+4. **Undo / Redo Point-Selection Policy**:
+   - Khi thực hiện `undo` hoặc `redo`, nếu vùng chọn hiện tại thuộc kiểu `trajectoryPoint`, selection tự động reset về `SceneEditorSelection.none()` để tránh trường hợp chỉ số point cũ trỏ nhầm điểm ngữ nghĩa sau khi khôi phục snapshot lịch sử. Vùng chọn Bi, Trajectory, và Annotation vẫn được giữ nguyên nếu ID còn tồn tại.
 
 ---
 
@@ -94,12 +85,11 @@ Nhận phản hồi từ đợt review code ngoại viện, lớp Editor Core đ
 
 ### Static Analysis
 ```text
-Command:
-flutter analyze
-
-Exit code: 0 errors
+Command: flutter analyze
+Exit code: 1 (do warnings/infos legacy)
+Errors: 0
 Warnings: 16
-Infos/deprecations: 303
+Infos/deprecations: 304
 
 analysis_options.yaml:
 Zero platform exclusions. Standard flutter_lints configuration preserved.
@@ -107,14 +97,12 @@ Zero platform exclusions. Standard flutter_lints configuration preserved.
 
 ### Test Suite Summary
 ```text
-Command:
-flutter test
-
-Total tests: 136
-Passed: 136
+Command: flutter test
+Total tests: 141
+Passed: 141
 Failed: 0
 ```
-*(Bao gồm các regression unit tests mới cho editor state, controller, history stack, immutable snapshots, no-op detection, selection sanitation, và architecture guard test).*
+*(Bao gồm tất cả unit tests mới cho deep timeline freeze, output immutability, semantic timeline comparison, trajectory point removal index shift, và undo/redo selection clearing).*
 
 ---
 
@@ -140,10 +128,10 @@ Failed: 0
 - [x] Lớp `lib/application/scene_editor/` tồn tại và thuần Dart (Pure Dart).
 - [x] `BilliardScene` là thực thể duy nhất đại diện cho thế bi (không tạo model song song `EditableScene`).
 - [x] Không import `package:flutter/*`, `dart:ui`, `sqflite` hay các kiểu UI (`Color`, `Offset`, `Canvas`, `Widget`, `BuildContext`).
-- [x] Khởi tạo `SceneEditorController` tạo default scene duy nhất 1 lần cho ca hai `savedBaseline` và `state.scene`.
-- [x] Các collection snapshot (`balls`, `trajectories`, `points`, `annotations`) là immutable (`List.unmodifiable`).
-- [x] Thao tác `updateBall` kiểm tra ngữ nghĩa no-op chính xác.
-- [x] Vùng chọn `selection` được làm sạch (`sanitizeSelection`) sau undo/redo/delete.
+- [x] Khởi tạo `SceneEditorController` tạo default scene duy nhất 1 lần cho cả hai `savedBaseline` và `state.scene`.
+- [x] Các collection snapshot (`balls`, `trajectories`, `points`, `annotations`, `teachingTimeline`) là immutable (`List.unmodifiable`, `Map.unmodifiable`).
+- [x] Thao tác `updateBall` và `teachingTimeline` kiểm tra ngữ nghĩa no-op chính xác.
+- [x] Vùng chọn `selection` được làm sạch (`sanitizeSelection`) và điều chỉnh chỉ số điểm đường chạy chính xác sau undo/redo/delete.
 - [x] `SceneEditorException` hierarchy xử lý thống nhất các lỗi target không tồn tại.
 - [x] Validation `maxHistory <= 0` hoạt động ở Release mode.
 - [x] Undo/redo hoạt động chính xác với giới hạn 100 snapshot.
@@ -161,15 +149,14 @@ Failed: 0
 PHASE 4 = IN_PROGRESS
 PHASE 4A = READY FOR EXTERNAL REVIEW
 
-PURE DART EDITOR CORE = PASS
-INITIAL BASELINE = PASS
+EDITOR CORE = PASS
 IMMUTABLE SNAPSHOTS = PASS
+TEACHING TIMELINE SNAPSHOT SAFETY = PASS
 NO-OP SEMANTICS = PASS
 UNDO/REDO = PASS
 DIRTY STATE = PASS
-SELECTION CONSISTENCY = PASS
+POINT SELECTION CONSISTENCY = PASS
 INVALID COMMAND POLICY = PASS
-STABLE IDS = PASS
 PHASE 3 REGRESSION = PASS
 
 PHASE 4B = NOT_STARTED

@@ -71,7 +71,25 @@ class SceneEditorController {
     );
   }
 
+  static dynamic _freezeJson(dynamic value) {
+    if (value is Map) {
+      final frozenMap = <String, dynamic>{};
+      value.forEach((k, v) {
+        frozenMap[k.toString()] = _freezeJson(v);
+      });
+      return Map<String, dynamic>.unmodifiable(frozenMap);
+    } else if (value is List) {
+      final frozenList = value.map(_freezeJson).toList();
+      return List<dynamic>.unmodifiable(frozenList);
+    }
+    return value;
+  }
+
   static BilliardScene _freezeScene(BilliardScene scene) {
+    final frozenTimeline = scene.teachingTimeline != null
+        ? _freezeJson(scene.teachingTimeline) as Map<String, dynamic>
+        : null;
+
     return scene.copyWith(
       balls: List<BallPosition>.unmodifiable(scene.balls),
       trajectories: List<TrajectoryLine>.unmodifiable(
@@ -84,7 +102,29 @@ class SceneEditorController {
         ),
       ),
       annotations: List<SceneAnnotation>.unmodifiable(scene.annotations),
+      teachingTimeline: frozenTimeline,
     );
+  }
+
+  static bool _areJsonValuesIdentical(dynamic a, dynamic b) {
+    if (identical(a, b)) return true;
+    if (a == null || b == null) return a == b;
+    if (a is Map && b is Map) {
+      if (a.length != b.length) return false;
+      for (final key in a.keys) {
+        if (!b.containsKey(key)) return false;
+        if (!_areJsonValuesIdentical(a[key], b[key])) return false;
+      }
+      return true;
+    }
+    if (a is List && b is List) {
+      if (a.length != b.length) return false;
+      for (var i = 0; i < a.length; i++) {
+        if (!_areJsonValuesIdentical(a[i], b[i])) return false;
+      }
+      return true;
+    }
+    return a == b;
   }
 
   static bool _areBallsIdentical(BallPosition a, BallPosition b) {
@@ -128,27 +168,33 @@ class SceneEditorController {
         a.presentationConfig != b.presentationConfig) {
       return false;
     }
+    if (!_areJsonValuesIdentical(a.teachingTimeline, b.teachingTimeline)) {
+      return false;
+    }
     if (a.balls.length != b.balls.length) return false;
     for (var i = 0; i < a.balls.length; i++) {
       if (!_areBallsIdentical(a.balls[i], b.balls[i])) return false;
     }
     if (a.trajectories.length != b.trajectories.length) return false;
     for (var i = 0; i < a.trajectories.length; i++) {
-      if (!_areTrajectoriesIdentical(a.trajectories[i], b.trajectories[i]))
+      if (!_areTrajectoriesIdentical(a.trajectories[i], b.trajectories[i])) {
         return false;
+      }
     }
     if (a.annotations.length != b.annotations.length) return false;
     for (var i = 0; i < a.annotations.length; i++) {
-      if (!_areAnnotationsIdentical(a.annotations[i], b.annotations[i]))
+      if (!_areAnnotationsIdentical(a.annotations[i], b.annotations[i])) {
         return false;
+      }
     }
     return true;
   }
 
   static SceneEditorSelection sanitizeSelection(
     BilliardScene scene,
-    SceneEditorSelection selection,
-  ) {
+    SceneEditorSelection selection, {
+    bool isHistoryNavigation = false,
+  }) {
     switch (selection.type) {
       case SceneEditorSelectionType.none:
         return const SceneEditorSelection.none();
@@ -161,6 +207,7 @@ class SceneEditorController {
         );
         return exists ? selection : const SceneEditorSelection.none();
       case SceneEditorSelectionType.trajectoryPoint:
+        if (isHistoryNavigation) return const SceneEditorSelection.none();
         final index = scene.trajectories.indexWhere(
           (t) => t.id == selection.targetId,
         );
@@ -471,7 +518,25 @@ class SceneEditorController {
     final newTrajs = List<TrajectoryLine>.from(_state.scene.trajectories);
     newTrajs[index] = updated;
 
-    _commitSceneEdit(_state.scene.copyWith(trajectories: newTrajs));
+    SceneEditorSelection newSelection = _state.selection;
+    if (_state.selection.type == SceneEditorSelectionType.trajectoryPoint &&
+        _state.selection.targetId == trajectoryId &&
+        _state.selection.pointIndex != null) {
+      final selIdx = _state.selection.pointIndex!;
+      if (selIdx == pointIndex) {
+        newSelection = const SceneEditorSelection.none();
+      } else if (selIdx > pointIndex) {
+        newSelection = SceneEditorSelection.trajectoryPoint(
+          trajectoryId,
+          selIdx - 1,
+        );
+      }
+    }
+
+    _commitSceneEdit(
+      _state.scene.copyWith(trajectories: newTrajs),
+      newSelection: newSelection,
+    );
   }
 
   void changeTrajectoryColorHex(String trajectoryId, String colorHex) {
@@ -723,7 +788,11 @@ class SceneEditorController {
     if (previousScene == null) return;
 
     final isDirty = !_areScenesIdentical(previousScene, _savedBaseline);
-    final sanitizedSel = sanitizeSelection(previousScene, _state.selection);
+    final sanitizedSel = sanitizeSelection(
+      previousScene,
+      _state.selection,
+      isHistoryNavigation: true,
+    );
 
     _state = _state.copyWith(
       scene: previousScene,
@@ -742,7 +811,11 @@ class SceneEditorController {
     if (nextScene == null) return;
 
     final isDirty = !_areScenesIdentical(nextScene, _savedBaseline);
-    final sanitizedSel = sanitizeSelection(nextScene, _state.selection);
+    final sanitizedSel = sanitizeSelection(
+      nextScene,
+      _state.selection,
+      isHistoryNavigation: true,
+    );
 
     _state = _state.copyWith(
       scene: nextScene,

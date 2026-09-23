@@ -698,5 +698,209 @@ void main() {
         );
       },
     );
+
+    // ==================================================
+    // FINAL HARDENING REGRESSION TESTS (TEACHING TIMELINE & POINT SELECTION DRIFT)
+    // ==================================================
+
+    test(
+      'teachingTimeline input alias mutation cannot leak into editor state (Requirement 4)',
+      () {
+        final steps = <dynamic>[
+          {'name': 'A'},
+        ];
+        final timeline = <String, dynamic>{'steps': steps};
+
+        final scene = BilliardScene(
+          id: 'timeline-scene',
+          name: 'Timeline Scene',
+          teachingTimeline: timeline,
+          createdAt: fixedTime,
+          updatedAt: fixedTime,
+        );
+
+        final controller = SceneEditorController(clock: clock);
+        controller.loadScene(scene);
+
+        // Mutate original caller structures
+        timeline['other'] = true;
+        steps.clear();
+
+        final currentTimeline = controller.currentScene.teachingTimeline!;
+        expect(currentTimeline.containsKey('other'), isFalse);
+        final currentSteps = currentTimeline['steps'] as List;
+        expect(currentSteps.length, equals(1));
+        expect((currentSteps.first as Map)['name'], equals('A'));
+      },
+    );
+
+    test(
+      'teachingTimeline output collections and nested objects are immutable snapshots (Requirement 5)',
+      () {
+        final scene = BilliardScene(
+          id: 'timeline-scene',
+          name: 'Timeline Scene',
+          teachingTimeline: {
+            'steps': [
+              {'name': 'Step 1'},
+            ],
+          },
+          createdAt: fixedTime,
+          updatedAt: fixedTime,
+        );
+
+        final controller = SceneEditorController(
+          initialScene: scene,
+          clock: clock,
+        );
+
+        // Attempt root map mutation
+        expect(
+          () => controller.currentScene.teachingTimeline!['x'] = 1,
+          throwsUnsupportedError,
+        );
+
+        // Attempt nested list mutation
+        final steps =
+            controller.currentScene.teachingTimeline!['steps'] as List;
+        expect(() => steps.add({'name': 'Step 2'}), throwsUnsupportedError);
+
+        // Attempt nested map mutation
+        final step = steps.first as Map;
+        expect(() => step['x'] = 1, throwsUnsupportedError);
+      },
+    );
+
+    test(
+      'teachingTimeline deep semantic comparison for dirty state tracking (Requirement 6)',
+      () {
+        final timelineA = {
+          'steps': [
+            {'name': 'Step 1', 'power': 0.8},
+          ],
+        };
+        final sceneA = BilliardScene(
+          id: 'timeline-scene',
+          name: 'Timeline Scene',
+          teachingTimeline: timelineA,
+          createdAt: fixedTime,
+          updatedAt: fixedTime,
+        );
+
+        final controller = SceneEditorController(
+          initialScene: sceneA,
+          clock: clock,
+        );
+        expect(controller.state.isDirty, isFalse);
+
+        // Load equivalent timeline instantiated separately
+        final timelineB = {
+          'steps': [
+            {'name': 'Step 1', 'power': 0.8},
+          ],
+        };
+        final sceneB = BilliardScene(
+          id: 'timeline-scene',
+          name: 'Timeline Scene',
+          teachingTimeline: timelineB,
+          createdAt: fixedTime,
+          updatedAt: fixedTime,
+        );
+
+        controller.loadScene(sceneB);
+        expect(controller.state.isDirty, isFalse);
+      },
+    );
+
+    test(
+      'trajectoryPoint selection tracks index shift accurately on removal (Requirement 8)',
+      () {
+        final controller = SceneEditorController(clock: clock);
+        controller.addTrajectory(
+          points: const [
+            TablePoint(0.1, 0.1), // A (index 0)
+            TablePoint(0.3, 0.3), // B (index 1)
+            TablePoint(0.5, 0.5), // C (index 2)
+            TablePoint(0.7, 0.7), // D (index 3)
+          ],
+        );
+
+        final trajId = controller.currentScene.trajectories.first.id;
+
+        // 1. Remove BEFORE selected point (select C at index 2, remove B at index 1)
+        controller.select(SceneEditorSelection.trajectoryPoint(trajId, 2));
+        expect(controller.state.selection.pointIndex, equals(2));
+
+        controller.removeTrajectoryPoint(trajId, 1);
+        // selection index shifts from 2 to 1 (still pointing to C)
+        expect(
+          controller.state.selection.type,
+          equals(SceneEditorSelectionType.trajectoryPoint),
+        );
+        expect(controller.state.selection.pointIndex, equals(1));
+        expect(
+          controller.currentScene.trajectories.first.points[1],
+          equals(const TablePoint(0.5, 0.5)),
+        );
+
+        // 2. Remove SELECTED point (select C at index 1, remove C at index 1)
+        controller.removeTrajectoryPoint(trajId, 1);
+        // selection becomes none
+        expect(
+          controller.state.selection,
+          equals(const SceneEditorSelection.none()),
+        );
+
+        // 3. Remove AFTER selected point (select A at index 0, remove D at index 1)
+        controller.select(SceneEditorSelection.trajectoryPoint(trajId, 0));
+        expect(controller.state.selection.pointIndex, equals(0));
+
+        controller.removeTrajectoryPoint(trajId, 1);
+        // selection remains index 0
+        expect(
+          controller.state.selection.type,
+          equals(SceneEditorSelectionType.trajectoryPoint),
+        );
+        expect(controller.state.selection.pointIndex, equals(0));
+      },
+    );
+
+    test(
+      'undo and redo clear trajectoryPoint selection for safety (Requirement 9 & 10)',
+      () {
+        final controller = SceneEditorController(clock: clock);
+        controller.addTrajectory(
+          points: const [
+            TablePoint(0.1, 0.1), // A (index 0)
+            TablePoint(0.3, 0.3), // B (index 1)
+            TablePoint(0.5, 0.5), // C (index 2)
+          ],
+        );
+
+        final trajId = controller.currentScene.trajectories.first.id;
+
+        // Select point B at index 1
+        controller.select(SceneEditorSelection.trajectoryPoint(trajId, 1));
+        expect(controller.state.selection.pointIndex, equals(1));
+
+        // Remove A at index 0 (points become [B, C], B shifts to index 0)
+        controller.removeTrajectoryPoint(trajId, 0);
+        expect(controller.state.selection.pointIndex, equals(0));
+
+        // Undo removes edit and restores [A, B, C] -> point selection MUST be cleared to none
+        controller.undo();
+        expect(
+          controller.state.selection,
+          equals(const SceneEditorSelection.none()),
+        );
+
+        // Redo restores [B, C] -> point selection MUST remain none
+        controller.redo();
+        expect(
+          controller.state.selection,
+          equals(const SceneEditorSelection.none()),
+        );
+      },
+    );
   });
 }
