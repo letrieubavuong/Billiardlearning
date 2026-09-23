@@ -4,7 +4,21 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from git_change_guard import create_snapshot, validate_job_changes
+from git_change_guard import (
+    create_snapshot,
+    validate_job_changes,
+)
+
+from git_job_manager import (
+    GitJobError,
+    create_job_branch,
+    stage_job_changes,
+    commit_job,
+    verify_job_commit,
+    push_job_branch,
+    return_to_main,
+    get_current_branch,
+)
 
 
 # ============================================================
@@ -13,16 +27,31 @@ from git_change_guard import create_snapshot, validate_job_changes
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-GH_EXE = Path(r"C:\Program Files\GitHub CLI\gh.exe")
+GH_EXE = Path(
+    r"C:\Program Files\GitHub CLI\gh.exe"
+)
 
-CONTROL_REPO = "letrieubavuong/Billiardlearning-AI-Control"
+CONTROL_REPO = (
+    "letrieubavuong/"
+    "Billiardlearning-AI-Control"
+)
+
 TRUSTED_GITHUB_USER = "letrieubavuong"
 
 EXPECTED_PROTOCOL = "AGBRIDGE/1.0"
 EXPECTED_PROJECT = "Billiardlearning"
 
-CURRENT_TASK_FILE = PROJECT_ROOT / "automation" / "CURRENT_TASK.md"
-EXECUTOR_BRIDGE = PROJECT_ROOT / "scripts" / "executor_bridge.py"
+CURRENT_TASK_FILE = (
+    PROJECT_ROOT
+    / "automation"
+    / "CURRENT_TASK.md"
+)
+
+EXECUTOR_BRIDGE = (
+    PROJECT_ROOT
+    / "scripts"
+    / "executor_bridge.py"
+)
 
 WORKER_STATE_FILE = (
     PROJECT_ROOT
@@ -30,8 +59,6 @@ WORKER_STATE_FILE = (
     / "github_worker_state.json"
 )
 
-# Files changed by Bridge infrastructure itself.
-# These must never be treated as Antigravity business changes.
 INFRASTRUCTURE_PATHS = {
     "automation/events.jsonl",
     "automation/github_worker_state.json",
@@ -41,6 +68,7 @@ TERMINAL_STATUSES = {
     "SUCCESS",
     "BLOCKED",
     "FAILED",
+    "GIT_PUSHED",
 }
 
 
@@ -49,9 +77,16 @@ TERMINAL_STATUSES = {
 # ============================================================
 
 class ChangeGuardBlockedError(RuntimeError):
-    def __init__(self, message, violations=None):
+    def __init__(
+        self,
+        message,
+        violations=None,
+    ):
         super().__init__(message)
-        self.violations = violations or []
+
+        self.violations = (
+            violations or []
+        )
 
 
 # ============================================================
@@ -59,7 +94,9 @@ class ChangeGuardBlockedError(RuntimeError):
 # ============================================================
 
 def utc_now():
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(
+        timezone.utc
+    ).isoformat()
 
 
 def run_gh(args):
@@ -88,15 +125,19 @@ def clean_issue_body(body):
 
     body = body.strip()
 
-    # Normal UTF-8 BOM.
-    body = body.replace("\ufeff", "")
+    body = body.replace(
+        "\ufeff",
+        "",
+    )
 
-    # Common mojibake representations.
     for bad_bom in (
         "ï»¿",
         "Ã¯Â»Â¿",
     ):
-        body = body.replace(bad_bom, "")
+        body = body.replace(
+            bad_bom,
+            "",
+        )
 
     return body.strip()
 
@@ -112,12 +153,18 @@ def default_state():
 
 
 def migrate_old_state(state):
-    if not isinstance(state, dict):
+    if not isinstance(
+        state,
+        dict,
+    ):
         return default_state()
 
     jobs = state.get("jobs")
 
-    if not isinstance(jobs, dict):
+    if not isinstance(
+        jobs,
+        dict,
+    ):
         jobs = {}
 
     old_processed = state.get(
@@ -125,9 +172,14 @@ def migrate_old_state(state):
         [],
     )
 
-    if isinstance(old_processed, list):
+    if isinstance(
+        old_processed,
+        list,
+    ):
         for issue_number in old_processed:
-            key = str(issue_number)
+            key = str(
+                issue_number
+            )
 
             if key not in jobs:
                 jobs[key] = {
@@ -161,7 +213,9 @@ def load_state():
             f"is invalid: {exc}"
         )
 
-    return migrate_old_state(raw_state)
+    return migrate_old_state(
+        raw_state
+    )
 
 
 def save_state(state):
@@ -184,14 +238,21 @@ def get_issue_status(
     state,
     issue_number,
 ):
-    record = state["jobs"].get(
+    record = state[
+        "jobs"
+    ].get(
         str(issue_number)
     )
 
-    if not isinstance(record, dict):
+    if not isinstance(
+        record,
+        dict,
+    ):
         return None
 
-    return record.get("status")
+    return record.get(
+        "status"
+    )
 
 
 def set_issue_status(
@@ -200,6 +261,9 @@ def set_issue_status(
     status,
     job_id=None,
     message=None,
+    branch=None,
+    commit_sha=None,
+    baseline_sha=None,
 ):
     record = {
         "status": status,
@@ -207,10 +271,29 @@ def set_issue_status(
     }
 
     if job_id:
-        record["job_id"] = job_id
+        record[
+            "job_id"
+        ] = job_id
 
     if message:
-        record["message"] = message
+        record[
+            "message"
+        ] = message
+
+    if branch:
+        record[
+            "branch"
+        ] = branch
+
+    if commit_sha:
+        record[
+            "commit_sha"
+        ] = commit_sha
+
+    if baseline_sha:
+        record[
+            "baseline_sha"
+        ] = baseline_sha
 
     state["jobs"][
         str(issue_number)
@@ -256,31 +339,54 @@ def comment_issue(
 # ============================================================
 
 def validate_job(job):
-    if not isinstance(job, dict):
+    if not isinstance(
+        job,
+        dict,
+    ):
         raise ValueError(
-            "Job body must be a JSON object."
+            "Job body must be "
+            "a JSON object."
         )
 
-    if job.get("protocol") != EXPECTED_PROTOCOL:
+    if (
+        job.get("protocol")
+        != EXPECTED_PROTOCOL
+    ):
         raise ValueError(
             "Invalid protocol."
         )
 
-    if job.get("project") != EXPECTED_PROJECT:
+    if (
+        job.get("project")
+        != EXPECTED_PROJECT
+    ):
         raise ValueError(
             "Invalid project."
         )
 
-    job_id = job.get("job_id")
-    action = job.get("action")
-    prompt = job.get("prompt")
+    job_id = job.get(
+        "job_id"
+    )
 
-    execute_antigravity = job.get(
-        "execute_antigravity"
+    action = job.get(
+        "action"
+    )
+
+    prompt = job.get(
+        "prompt"
+    )
+
+    execute_antigravity = (
+        job.get(
+            "execute_antigravity"
+        )
     )
 
     if (
-        not isinstance(job_id, str)
+        not isinstance(
+            job_id,
+            str,
+        )
         or not job_id.strip()
     ):
         raise ValueError(
@@ -292,11 +398,15 @@ def validate_job(job):
         "EXECUTE",
     ):
         raise ValueError(
-            "action must be PING or EXECUTE."
+            "action must be "
+            "PING or EXECUTE."
         )
 
     if (
-        not isinstance(prompt, str)
+        not isinstance(
+            prompt,
+            str,
+        )
         or not prompt.strip()
     ):
         raise ValueError(
@@ -317,7 +427,8 @@ def validate_job(job):
         and execute_antigravity
     ):
         raise ValueError(
-            "PING cannot execute Antigravity."
+            "PING cannot execute "
+            "Antigravity."
         )
 
     if (
@@ -330,8 +441,10 @@ def validate_job(job):
         )
 
     if action == "EXECUTE":
-        allowed_paths = job.get(
-            "allowed_paths"
+        allowed_paths = (
+            job.get(
+                "allowed_paths"
+            )
         )
 
         if not isinstance(
@@ -339,22 +452,28 @@ def validate_job(job):
             list,
         ):
             raise ValueError(
-                "EXECUTE requires allowed_paths."
+                "EXECUTE requires "
+                "allowed_paths."
             )
 
         if not allowed_paths:
             raise ValueError(
-                "allowed_paths cannot be empty."
+                "allowed_paths "
+                "cannot be empty."
             )
 
         for path in allowed_paths:
             if (
-                not isinstance(path, str)
+                not isinstance(
+                    path,
+                    str,
+                )
                 or not path.strip()
             ):
                 raise ValueError(
-                    "Every allowed_paths entry "
-                    "must be a non-empty string."
+                    "Every allowed_paths "
+                    "entry must be a "
+                    "non-empty string."
                 )
 
 
@@ -368,11 +487,15 @@ def execute_antigravity_job(
     prompt,
 ):
     print(
-        "[*] Preparing Antigravity task..."
+        "[*] Preparing "
+        "Antigravity task..."
     )
 
     original_task = None
-    task_existed = CURRENT_TASK_FILE.exists()
+
+    task_existed = (
+        CURRENT_TASK_FILE.exists()
+    )
 
     if task_existed:
         original_task = (
@@ -397,12 +520,13 @@ def execute_antigravity_job(
         )
 
         print(
-            "[+] CURRENT_TASK.md prepared "
-            f"for {job_id}."
+            "[+] CURRENT_TASK.md "
+            f"prepared for {job_id}."
         )
 
         print(
-            "[*] Calling executor_bridge.py..."
+            "[*] Calling "
+            "executor_bridge.py..."
         )
 
         result = subprocess.run(
@@ -421,18 +545,24 @@ def execute_antigravity_job(
             print(
                 "\n=== EXECUTOR OUTPUT ==="
             )
-            print(result.stdout)
+
+            print(
+                result.stdout
+            )
 
         if result.stderr:
             print(
                 "\n=== EXECUTOR STDERR ==="
             )
-            print(result.stderr)
+
+            print(
+                result.stderr
+            )
 
         if result.returncode != 0:
             raise RuntimeError(
-                "Executor Bridge failed with "
-                f"return code "
+                "Executor Bridge failed "
+                "with return code "
                 f"{result.returncode}."
             )
 
@@ -456,7 +586,8 @@ def execute_antigravity_job(
             CURRENT_TASK_FILE.unlink()
 
         print(
-            "[+] CURRENT_TASK.md restored."
+            "[+] CURRENT_TASK.md "
+            "restored."
         )
 
 
@@ -496,26 +627,36 @@ def inspect_job_changes(
     ]
 
     print()
-    print("=== CHANGE GUARD ===")
+    print(
+        "=== CHANGE GUARD ==="
+    )
 
     if actual_job_changes:
-        print("[+] Job changed:")
+        print(
+            "[+] Job changed:"
+        )
 
         for path in actual_job_changes:
-            print(f"    {path}")
+            print(
+                f"    {path}"
+            )
 
     else:
         print(
-            "[*] No job file changes detected."
+            "[*] No job file "
+            "changes detected."
         )
 
     if infrastructure_changes:
         print(
-            "[*] Infrastructure side-effects:"
+            "[*] Infrastructure "
+            "side-effects:"
         )
 
         for path in infrastructure_changes:
-            print(f"    {path}")
+            print(
+                f"    {path}"
+            )
 
     if real_violations:
         print(
@@ -524,13 +665,16 @@ def inspect_job_changes(
         )
 
         for path in real_violations:
-            print(f"    {path}")
+            print(
+                f"    {path}"
+            )
 
         raise ChangeGuardBlockedError(
             (
-                "Change Guard blocked the job "
-                "because files outside "
-                "allowed_paths were modified."
+                "Change Guard blocked "
+                "the job because files "
+                "outside allowed_paths "
+                "were modified."
             ),
             violations=real_violations,
         )
@@ -543,35 +687,74 @@ def inspect_job_changes(
 
 
 # ============================================================
-# GitHub result reporting
+# Reporting
 # ============================================================
 
-def report_success(
+def report_ping_success(
     issue_number,
     job_id,
-    actual_job_changes,
 ):
-    if actual_job_changes:
-        changed_text = "\n".join(
-            f"- `{path}`"
-            for path in actual_job_changes
-        )
-    else:
-        changed_text = (
-            "- No job files changed."
-        )
+    comment_issue(
+        issue_number,
+        (
+            "AI-Bridge received this "
+            "job successfully.\n\n"
+            f"- Job: `{job_id}`\n"
+            "- Result: "
+            "`GITHUB_BRIDGE_OK`\n"
+            f"- Time: `{utc_now()}`"
+        ),
+    )
+
+
+def report_running(
+    issue_number,
+    job_id,
+    branch,
+    baseline_sha,
+):
+    comment_issue(
+        issue_number,
+        (
+            "AI-Bridge accepted this job "
+            "and created an isolated "
+            "Git branch.\n\n"
+            f"- Job: `{job_id}`\n"
+            "- Status: `RUNNING`\n"
+            f"- Branch: `{branch}`\n"
+            f"- Baseline: "
+            f"`{baseline_sha}`\n"
+            f"- Started: `{utc_now()}`"
+        ),
+    )
+
+
+def report_git_pushed(
+    issue_number,
+    job_id,
+    branch,
+    commit_sha,
+    changed_paths,
+):
+    changed_text = "\n".join(
+        f"- `{path}`"
+        for path in changed_paths
+    )
 
     comment_issue(
         issue_number,
         (
-            "Antigravity execution completed "
-            "and Change Guard passed.\n\n"
+            "Antigravity execution, "
+            "Change Guard, commit and "
+            "push completed.\n\n"
             f"- Job: `{job_id}`\n"
-            "- Status: `SUCCESS`\n"
-            f"- Completed: `{utc_now()}`\n\n"
-            "Job changes:\n"
-            f"{changed_text}\n\n"
-            "No commit or push was performed."
+            "- Status: `GIT_PUSHED`\n"
+            f"- Branch: `{branch}`\n"
+            f"- Commit: `{commit_sha}`\n"
+            f"- Completed: `{utc_now()}`"
+            "\n\n"
+            "Committed job changes:\n"
+            f"{changed_text}"
         ),
     )
 
@@ -580,31 +763,46 @@ def report_blocked(
     issue_number,
     job_id,
     message,
-    violations,
+    violations=None,
+    branch=None,
 ):
+    lines = [
+        "AI-Bridge blocked this job.",
+        "",
+        f"- Job: `{job_id}`",
+        "- Status: `BLOCKED`",
+    ]
+
+    if branch:
+        lines.append(
+            f"- Branch: `{branch}`"
+        )
+
+    lines.extend([
+        f"- Reason: `{message}`",
+        f"- Time: `{utc_now()}`",
+    ])
+
     if violations:
-        violation_text = "\n".join(
-            f"- `{path}`"
-            for path in violations
-        )
-    else:
-        violation_text = (
-            "- Unknown violation."
-        )
+        lines.extend([
+            "",
+            "Unauthorized changes:",
+        ])
+
+        for path in violations:
+            lines.append(
+                f"- `{path}`"
+            )
+
+    lines.extend([
+        "",
+        "No automatic retry will "
+        "be performed.",
+    ])
 
     comment_issue(
         issue_number,
-        (
-            "AI-Bridge blocked this job.\n\n"
-            f"- Job: `{job_id}`\n"
-            "- Status: `BLOCKED`\n"
-            f"- Reason: `{message}`\n"
-            f"- Time: `{utc_now()}`\n\n"
-            "Unauthorized changes:\n"
-            f"{violation_text}\n\n"
-            "This job will not be "
-            "automatically retried."
-        ),
+        "\n".join(lines),
     )
 
 
@@ -612,19 +810,395 @@ def report_failed(
     issue_number,
     job_id,
     message,
+    branch=None,
 ):
+    lines = [
+        "AI-Bridge execution failed.",
+        "",
+        f"- Job: `{job_id}`",
+        "- Status: `FAILED`",
+    ]
+
+    if branch:
+        lines.append(
+            f"- Branch: `{branch}`"
+        )
+
+    lines.extend([
+        f"- Error: `{message}`",
+        f"- Time: `{utc_now()}`",
+        "",
+        "No automatic retry will "
+        "be performed.",
+    ])
+
     comment_issue(
         issue_number,
-        (
-            "AI-Bridge execution failed.\n\n"
-            f"- Job: `{job_id}`\n"
-            "- Status: `FAILED`\n"
-            f"- Error: `{message}`\n"
-            f"- Time: `{utc_now()}`\n\n"
-            "This job will not be "
-            "automatically retried."
-        ),
+        "\n".join(lines),
     )
+
+
+# ============================================================
+# EXECUTE pipeline
+# ============================================================
+
+def run_execute_pipeline(
+    state,
+    issue_number,
+    job_id,
+    prompt,
+    allowed_paths,
+):
+    branch_name = None
+    baseline_sha = None
+
+    # --------------------------------------------------------
+    # 1. Create isolated Git branch
+    # --------------------------------------------------------
+
+    print(
+        "[*] Verifying clean main "
+        "and creating job branch..."
+    )
+
+    branch_info = create_job_branch(
+        job_id
+    )
+
+    branch_name = branch_info[
+        "branch"
+    ]
+
+    baseline_sha = branch_info[
+        "baseline_sha"
+    ]
+
+    print(
+        f"[+] Job branch: "
+        f"{branch_name}"
+    )
+
+    print(
+        f"[+] Baseline: "
+        f"{baseline_sha}"
+    )
+
+    set_issue_status(
+        state,
+        issue_number,
+        "RUNNING",
+        job_id=job_id,
+        message=(
+            "Isolated branch created."
+        ),
+        branch=branch_name,
+        baseline_sha=baseline_sha,
+    )
+
+    try:
+        report_running(
+            issue_number,
+            job_id,
+            branch_name,
+            baseline_sha,
+        )
+
+    except Exception as exc:
+        print(
+            "[-] Could not post "
+            "RUNNING comment: "
+            f"{exc}"
+        )
+
+    # --------------------------------------------------------
+    # 2. Snapshot AFTER infrastructure bookkeeping
+    # --------------------------------------------------------
+
+    print(
+        "[*] Capturing BEFORE "
+        "snapshot..."
+    )
+
+    before_snapshot = (
+        create_snapshot()
+    )
+
+    print(
+        f"[+] BEFORE snapshot: "
+        f"{len(before_snapshot)} "
+        "dirty paths."
+    )
+
+    # --------------------------------------------------------
+    # 3. Antigravity
+    # --------------------------------------------------------
+
+    execute_antigravity_job(
+        issue_number,
+        job_id,
+        prompt,
+    )
+
+    # --------------------------------------------------------
+    # 4. Change Guard
+    # --------------------------------------------------------
+
+    print(
+        "[*] Capturing AFTER "
+        "snapshot..."
+    )
+
+    after_snapshot = (
+        create_snapshot()
+    )
+
+    print(
+        f"[+] AFTER snapshot: "
+        f"{len(after_snapshot)} "
+        "dirty paths."
+    )
+
+    actual_job_changes = (
+        inspect_job_changes(
+            before_snapshot,
+            after_snapshot,
+            allowed_paths,
+        )
+    )
+
+    if not actual_job_changes:
+        raise GitJobError(
+            "Antigravity produced no "
+            "committable job changes."
+        )
+
+    # --------------------------------------------------------
+    # 5. Stage ONLY approved paths
+    # --------------------------------------------------------
+
+    print()
+    print(
+        "=== GIT STAGING ==="
+    )
+
+    staged_paths = (
+        stage_job_changes(
+            actual_job_changes
+        )
+    )
+
+    print(
+        "[+] Staged approved paths:"
+    )
+
+    for path in staged_paths:
+        print(
+            f"    {path}"
+        )
+
+    # --------------------------------------------------------
+    # 6. Commit
+    # --------------------------------------------------------
+
+    print(
+        "[*] Creating job commit..."
+    )
+
+    commit_sha = commit_job(
+        job_id,
+        issue_number,
+    )
+
+    print(
+        f"[+] Commit: {commit_sha}"
+    )
+
+    # --------------------------------------------------------
+    # 7. Verify exact commit
+    # --------------------------------------------------------
+
+    print(
+        "[*] Verifying committed "
+        "change-set..."
+    )
+
+    committed_paths = (
+        verify_job_commit(
+            branch_name,
+            baseline_sha,
+            actual_job_changes,
+        )
+    )
+
+    print(
+        "[+] Commit verification "
+        "PASSED."
+    )
+
+    # --------------------------------------------------------
+    # 8. Ensure no leftovers
+    # --------------------------------------------------------
+
+    from git_job_manager import (
+        get_dirty_paths,
+    )
+
+    leftovers = get_dirty_paths()
+
+    # events.jsonl is tracked and may be changed
+    # by executor_bridge. It must not silently
+    # travel with the job.
+    non_infra_leftovers = [
+        path
+        for path in leftovers
+        if path not in INFRASTRUCTURE_PATHS
+    ]
+
+    if non_infra_leftovers:
+        raise GitJobError(
+            "Unexpected uncommitted "
+            "changes remain after commit:\n"
+            + "\n".join(
+                f"- {path}"
+                for path
+                in non_infra_leftovers
+            )
+        )
+
+    # events.jsonl is a tracked runtime log.
+    # Restore only this known infrastructure file
+    # before push/return-to-main.
+    if (
+        "automation/events.jsonl"
+        in leftovers
+    ):
+        print(
+            "[*] Restoring tracked "
+            "runtime event log..."
+        )
+
+        result = subprocess.run(
+            [
+                "git",
+                "restore",
+                "--",
+                "automation/events.jsonl",
+            ],
+            cwd=str(PROJECT_ROOT),
+            capture_output=True,
+            text=True,
+            shell=False,
+            timeout=60,
+        )
+
+        if result.returncode != 0:
+            raise GitJobError(
+                "Could not restore "
+                "automation/events.jsonl.\n"
+                f"{result.stderr}"
+            )
+
+    # --------------------------------------------------------
+    # 9. Push isolated branch
+    # --------------------------------------------------------
+
+    print(
+        "[*] Pushing job branch..."
+    )
+
+    pushed_sha = (
+        push_job_branch(
+            branch_name
+        )
+    )
+
+    if pushed_sha != commit_sha:
+        raise GitJobError(
+            "Pushed SHA does not match "
+            "job commit SHA."
+        )
+
+    print(
+        f"[+] Branch pushed: "
+        f"{branch_name}"
+    )
+
+    # --------------------------------------------------------
+    # 10. Return to main
+    # --------------------------------------------------------
+
+    print(
+        "[*] Returning worker "
+        "to main..."
+    )
+
+    returned_branch = (
+        return_to_main()
+    )
+
+    if returned_branch != "main":
+        raise GitJobError(
+            "Worker did not return "
+            "to main."
+        )
+
+    print(
+        "[+] Worker returned to main."
+    )
+
+    # --------------------------------------------------------
+    # 11. Terminal state
+    # --------------------------------------------------------
+
+    set_issue_status(
+        state,
+        issue_number,
+        "GIT_PUSHED",
+        job_id=job_id,
+        message=(
+            "Job committed and pushed "
+            "to isolated branch."
+        ),
+        branch=branch_name,
+        commit_sha=commit_sha,
+        baseline_sha=baseline_sha,
+    )
+
+    try:
+        report_git_pushed(
+            issue_number,
+            job_id,
+            branch_name,
+            commit_sha,
+            committed_paths,
+        )
+
+    except Exception as exc:
+        print(
+            "[-] Could not post "
+            "GIT_PUSHED comment: "
+            f"{exc}"
+        )
+
+    print()
+    print(
+        "[+] JOB PIPELINE SUCCESS."
+    )
+
+    print(
+        f"[+] Branch : {branch_name}"
+    )
+
+    print(
+        f"[+] Commit : {commit_sha}"
+    )
+
+    return {
+        "branch": branch_name,
+        "commit_sha": commit_sha,
+        "baseline_sha": baseline_sha,
+        "changed_paths": committed_paths,
+    }
 
 
 # ============================================================
@@ -638,30 +1212,42 @@ def process_issue(
     number = issue["number"]
     title = issue["title"]
 
-    author = issue.get("author") or {}
-    login = author.get("login")
+    author = (
+        issue.get("author")
+        or {}
+    )
+
+    login = author.get(
+        "login"
+    )
 
     print(
-        f"[+] Found issue #{number}"
+        f"[+] Found issue "
+        f"#{number}"
     )
+
     print(
         f"[+] Title : {title}"
     )
+
     print(
         f"[+] Author: {login}"
     )
 
     if login != TRUSTED_GITHUB_USER:
+        message = (
+            "Untrusted issue author."
+        )
+
         print(
-            "[-] SECURITY: Issue author "
-            "is not trusted."
+            f"[-] SECURITY: {message}"
         )
 
         set_issue_status(
             state,
             number,
             "BLOCKED",
-            message="Untrusted issue author.",
+            message=message,
         )
 
         return
@@ -676,8 +1262,9 @@ def process_issue(
         )
 
         print(
-            f"[*] Issue #{number} already "
-            f"has terminal status: {status}"
+            f"[*] Issue #{number} "
+            "already has terminal "
+            f"status: {status}"
         )
 
         return
@@ -692,14 +1279,18 @@ def process_issue(
         "number,title,body,author",
     ])
 
-    data = json.loads(raw)
+    data = json.loads(
+        raw
+    )
 
     body = clean_issue_body(
         data.get("body") or ""
     )
 
     if not body:
-        message = "Issue body is empty."
+        message = (
+            "Issue body is empty."
+        )
 
         set_issue_status(
             state,
@@ -708,18 +1299,26 @@ def process_issue(
             message=message,
         )
 
-        print(f"[-] {message}")
+        print(
+            f"[-] {message}"
+        )
+
         return
 
     try:
-        job = json.loads(body)
+        job = json.loads(
+            body
+        )
 
     except json.JSONDecodeError as exc:
         message = (
-            f"Invalid job JSON: {exc}"
+            f"Invalid job JSON: "
+            f"{exc}"
         )
 
-        print(f"[-] {message}")
+        print(
+            f"[-] {message}"
+        )
 
         set_issue_status(
             state,
@@ -731,15 +1330,22 @@ def process_issue(
         return
 
     try:
-        validate_job(job)
+        validate_job(
+            job
+        )
 
     except Exception as exc:
-        message = str(exc)
-        job_id = job.get("job_id")
+        message = str(
+            exc
+        )
+
+        job_id = job.get(
+            "job_id"
+        )
 
         print(
-            "[-] Job validation failed: "
-            f"{message}"
+            "[-] Job validation "
+            f"failed: {message}"
         )
 
         set_issue_status(
@@ -766,9 +1372,17 @@ def process_issue(
 
         return
 
-    job_id = job["job_id"]
-    action = job["action"]
-    prompt = job["prompt"]
+    job_id = job[
+        "job_id"
+    ]
+
+    action = job[
+        "action"
+    ]
+
+    prompt = job[
+        "prompt"
+    ]
 
     execute_flag = job[
         "execute_antigravity"
@@ -782,9 +1396,11 @@ def process_issue(
     print(
         f"[+] Job ID : {job_id}"
     )
+
     print(
         f"[+] Action : {action}"
     )
+
     print(
         "[+] Execute Antigravity: "
         f"{execute_flag}"
@@ -796,26 +1412,22 @@ def process_issue(
 
     if action == "PING":
         print()
-        print("GITHUB_BRIDGE_OK")
+        print(
+            "GITHUB_BRIDGE_OK"
+        )
         print()
 
         try:
-            comment_issue(
+            report_ping_success(
                 number,
-                (
-                    "AI-Bridge received this "
-                    "job successfully.\n\n"
-                    f"- Job: `{job_id}`\n"
-                    "- Result: "
-                    "`GITHUB_BRIDGE_OK`\n"
-                    f"- Time: `{utc_now()}`"
-                ),
+                job_id,
             )
 
         except Exception as exc:
             print(
                 "[-] Could not post "
-                f"PING comment: {exc}"
+                "PING comment: "
+                f"{exc}"
             )
 
         set_issue_status(
@@ -837,89 +1449,35 @@ def process_issue(
     # EXECUTE
     # --------------------------------------------------------
 
-    print(
-        "[*] EXECUTE job accepted."
-    )
-
-    # IMPORTANT:
-    # Persist RUNNING before the BEFORE snapshot.
-    # This prevents worker-state bookkeeping from
-    # appearing as an Antigravity job change.
-    set_issue_status(
-        state,
-        number,
-        "RUNNING",
-        job_id=job_id,
-        message="Dispatched to Antigravity.",
-    )
+    branch_name = None
 
     try:
-        comment_issue(
-            number,
-            (
-                "AI-Bridge accepted this job "
-                "and is dispatching it to "
-                "Antigravity.\n\n"
-                f"- Job: `{job_id}`\n"
-                "- Status: `RUNNING`\n"
-                f"- Started: `{utc_now()}`"
-            ),
-        )
-
-    except Exception as exc:
-        print(
-            "[-] Could not post RUNNING "
-            f"comment: {exc}"
-        )
-
-    print(
-        "[*] Capturing BEFORE snapshot..."
-    )
-
-    before_snapshot = create_snapshot()
-
-    print(
-        f"[+] BEFORE snapshot: "
-        f"{len(before_snapshot)} "
-        "dirty paths."
-    )
-
-    print(
-        "[*] Dispatching to Antigravity..."
-    )
-
-    try:
-        output = execute_antigravity_job(
-            number,
-            job_id,
-            prompt,
-        )
-
-        print(
-            "[*] Capturing AFTER snapshot..."
-        )
-
-        after_snapshot = create_snapshot()
-
-        print(
-            f"[+] AFTER snapshot: "
-            f"{len(after_snapshot)} "
-            "dirty paths."
-        )
-
-        actual_job_changes = (
-            inspect_job_changes(
-                before_snapshot,
-                after_snapshot,
+        result = (
+            run_execute_pipeline(
+                state,
+                number,
+                job_id,
+                prompt,
                 allowed_paths,
             )
         )
 
+        branch_name = result[
+            "branch"
+        ]
+
     except ChangeGuardBlockedError as exc:
-        message = str(exc)
+        branch_name = (
+            get_current_branch()
+        )
+
+        message = str(
+            exc
+        )
 
         print(
-            f"[-] JOB BLOCKED: {message}"
+            f"[-] JOB BLOCKED: "
+            f"{message}"
         )
 
         set_issue_status(
@@ -928,6 +1486,7 @@ def process_issue(
             "BLOCKED",
             job_id=job_id,
             message=message,
+            branch=branch_name,
         )
 
         try:
@@ -935,7 +1494,10 @@ def process_issue(
                 number,
                 job_id,
                 message,
-                exc.violations,
+                violations=(
+                    exc.violations
+                ),
+                branch=branch_name,
             )
 
         except Exception as comment_exc:
@@ -945,10 +1507,30 @@ def process_issue(
                 f"{comment_exc}"
             )
 
+        print(
+            "[!] Dirty job branch "
+            "has been preserved for "
+            "inspection."
+        )
+
         return
 
     except Exception as exc:
-        message = str(exc)
+        current_branch = (
+            get_current_branch()
+        )
+
+        if (
+            current_branch
+            and current_branch != "main"
+        ):
+            branch_name = (
+                current_branch
+            )
+
+        message = str(
+            exc
+        )
 
         print(
             "[-] EXECUTION FAILED: "
@@ -961,6 +1543,7 @@ def process_issue(
             "FAILED",
             job_id=job_id,
             message=message,
+            branch=branch_name,
         )
 
         try:
@@ -968,6 +1551,7 @@ def process_issue(
                 number,
                 job_id,
                 message,
+                branch=branch_name,
             )
 
         except Exception as comment_exc:
@@ -977,45 +1561,12 @@ def process_issue(
                 f"{comment_exc}"
             )
 
+        print(
+            "[!] Automatic destructive "
+            "cleanup was not performed."
+        )
+
         return
-
-    set_issue_status(
-        state,
-        number,
-        "SUCCESS",
-        job_id=job_id,
-        message=(
-            "Antigravity execution and "
-            "Change Guard passed."
-        ),
-    )
-
-    try:
-        report_success(
-            number,
-            job_id,
-            actual_job_changes,
-        )
-
-    except Exception as exc:
-        print(
-            "[-] Could not post SUCCESS "
-            f"comment: {exc}"
-        )
-
-    print(
-        "[+] EXECUTE job completed "
-        "successfully."
-    )
-
-    print(
-        "[+] No commit or push performed."
-    )
-
-    if output:
-        print(
-            "[+] Executor returned output."
-        )
 
 
 # ============================================================
@@ -1032,26 +1583,32 @@ def main():
             "[-] ERROR: GitHub CLI "
             f"not found: {GH_EXE}"
         )
+
         sys.exit(1)
 
     if not EXECUTOR_BRIDGE.exists():
         print(
             "[-] ERROR: Executor Bridge "
-            f"not found: {EXECUTOR_BRIDGE}"
+            f"not found: "
+            f"{EXECUTOR_BRIDGE}"
         )
+
         sys.exit(1)
 
     try:
         state = load_state()
 
-        # Persist any old-state migration.
-        save_state(state)
+        save_state(
+            state
+        )
 
     except Exception as exc:
         print(
-            "[-] ERROR loading worker "
-            f"state: {exc}"
+            "[-] ERROR loading "
+            "worker state: "
+            f"{exc}"
         )
+
         sys.exit(1)
 
     try:
@@ -1070,30 +1627,39 @@ def main():
             "50",
         ])
 
-        issues = json.loads(raw)
+        issues = json.loads(
+            raw
+        )
 
     except Exception as exc:
         print(
             "[-] ERROR reading "
-            f"GitHub jobs: {exc}"
+            "GitHub jobs: "
+            f"{exc}"
         )
+
         sys.exit(1)
 
     if not issues:
         print(
             "[*] No pending AI jobs."
         )
+
         return
 
     issues = sorted(
         issues,
-        key=lambda item: item["number"],
+        key=lambda item: (
+            item["number"]
+        ),
     )
 
     pending_issue = None
 
     for issue in issues:
-        number = issue["number"]
+        number = issue[
+            "number"
+        ]
 
         if is_terminal(
             state,
@@ -1101,9 +1667,11 @@ def main():
         ):
             continue
 
-        status = get_issue_status(
-            state,
-            number,
+        status = (
+            get_issue_status(
+                state,
+                number,
+            )
         )
 
         if status == "RUNNING":
@@ -1111,10 +1679,12 @@ def main():
                 f"[!] Issue #{number} "
                 "is already RUNNING."
             )
+
             print(
-                "[!] Automatic retry is "
-                "disabled for safety."
+                "[!] Automatic retry "
+                "is disabled."
             )
+
             continue
 
         pending_issue = issue
@@ -1122,8 +1692,10 @@ def main():
 
     if pending_issue is None:
         print(
-            "[*] No unprocessed AI jobs."
+            "[*] No unprocessed "
+            "AI jobs."
         )
+
         return
 
     try:
@@ -1134,8 +1706,8 @@ def main():
 
     except Exception as exc:
         print(
-            "[-] Unexpected worker error: "
-            f"{exc}"
+            "[-] Unexpected worker "
+            f"error: {exc}"
         )
 
 
